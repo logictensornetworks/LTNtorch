@@ -1,22 +1,19 @@
 # Copyright (c) 2021-2024 Tommaso Carraro
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""
-The `ltn.core` module contains the main functionalities of LTNtorch. In particular, it contains the definitions of
+"""The `ltn.core` module contains the main functionalities of LTNtorch. In particular, it contains the definitions of
 constants, variables, predicates, functions, connectives, and quantifiers.
 """
 
 import copy
 import torch
 from torch import nn
-import numpy as np
 import ltn
 import types
 
 
 class LTNObject:
-    r"""
-    Class representing a generic :ref:`LTN object <noteltnobject>`.
+    r"""Class representing a generic :ref:`LTN object <noteltnobject>`.
 
     In LTNtorch, LTN objects are constants, variables, and outputs of predicates, formulas, functions, connectives,
     and quantifiers.
@@ -28,19 +25,19 @@ class LTNObject:
     var_labels : :obj:`list` of :obj:`str`
         The labels of the free variables contained in the LTN object.
 
-    Raises
+    Raises:
     ------
     :class:`TypeError`
         Raises when the types of the input parameters are incorrect.
 
-    Attributes
+    Attributes:
     ----------
     value : :class:`torch.Tensor`
         See `value` parameter.
     free_vars : :obj:`list` of :obj:`str`
         See `var_labels` parameter.
 
-    Notes
+    Notes:
     -----
     - in LTNtorch, the :ref:`groundings <notegrounding>` of the LTN objects (symbols) are represented using PyTorch tensors, namely :class:`torch.Tensor` instances;
     - `LTNObject` is used by LTNtorch internally. The user should not create `LTNObject` instances by his/her own, unless strictly necessary.
@@ -49,11 +46,14 @@ class LTNObject:
     def __init__(self, value, var_labels):
         # check inputs before creating the object
         if not isinstance(value, torch.Tensor):
-            raise TypeError("LTNObject() : argument 'value' (position 1) must be a torch.Tensor, not "
-                            + str(type(value)))
+            raise TypeError(
+                "LTNObject() : argument 'value' (position 1) must be a torch.Tensor, not " + str(type(value))
+            )
         if not (isinstance(var_labels, list) and (all(isinstance(x, str) for x in var_labels) if var_labels else True)):
-            raise TypeError("LTNObject() : argument 'var_labels' (position 2) must be a list of strings, not "
-                            + str(type(var_labels)))
+            raise TypeError(
+                "LTNObject() : argument 'var_labels' (position 2) must be a list of strings, not "
+                + str(type(var_labels))
+            )
         self.value = value
         self.free_vars = var_labels
 
@@ -61,10 +61,9 @@ class LTNObject:
         return "LTNObject(value=" + str(self.value) + ", free_vars=" + str(self.free_vars) + ")"
 
     def shape(self):
-        """
-        Returns the shape of the :ref:`grounding <notegrounding>` of the LTN object.
+        """Returns the shape of the :ref:`grounding <notegrounding>` of the LTN object.
 
-        Returns
+        Returns:
         -------
         :class:`torch.Size`
             The shape of the :ref:`grounding <notegrounding>` of the LTN object.
@@ -73,8 +72,7 @@ class LTNObject:
 
 
 class Constant(LTNObject):
-    r"""
-    Class representing an LTN constant.
+    r"""Class representing an LTN constant.
 
     An LTN constant denotes an individual :ref:`grounded <notegrounding>` as a tensor in the Real field.
     The individual can be pre-defined (fixed data point) or learnable (embedding).
@@ -86,14 +84,14 @@ class Constant(LTNObject):
     trainable : :obj:`bool`, default=False
         Flag indicating whether the LTN constant is trainable (embedding) or not.
 
-    Notes
+    Notes:
     -----
     - LTN constants are :ref:`LTN objects <noteltnobject>`. :class:`ltn.core.Constant` is a subclass of :class:`ltn.core.LTNObject`;
     - the attribute `free_vars` for LTN constants is an empty list, since a constant does not have variables by definition;
     - if parameter `trainable` is set to `True`, the LTN constant becomes trainable, namely an embedding;
     - if parameter `trainable` is set to `True`, then the `value` attribute of the LTN constant will be used as an initialization for the embedding of the constant.
 
-    Examples
+    Examples:
     --------
     Non-trainable constant
 
@@ -111,8 +109,7 @@ class Constant(LTNObject):
 
     Trainable constant
 
-    >>> t_c = ltn.Constant(torch.tensor([[3.4, 2.3, 5.6],
-    ...                                  [6.7, 5.6, 4.3]]), trainable=True)
+    >>> t_c = ltn.Constant(torch.tensor([[3.4, 2.3, 5.6], [6.7, 5.6, 4.3]]), trainable=True)
     >>> print(t_c)
     Constant(value=tensor([[3.4000, 2.3000, 5.6000],
             [6.7000, 5.6000, 4.3000]], requires_grad=True), free_vars=[])
@@ -124,6 +121,7 @@ class Constant(LTNObject):
     >>> print(t_c.shape())
     torch.Size([2, 3])
     """
+
     def __init__(self, value, trainable=False):
         # create sub-object of type LTNObject
         super(Constant, self).__init__(value, [])
@@ -139,8 +137,7 @@ class Constant(LTNObject):
 
 
 class Variable(LTNObject):
-    r"""
-    Class representing an LTN variable.
+    r"""Class representing an LTN variable.
 
     An LTN variable denotes a sequence of individuals. It is :ref:`grounded <notegrounding>` as a sequence of
     tensors (:ref:`groundings <notegrounding>` of individuals) in the real field.
@@ -157,29 +154,28 @@ class Variable(LTNObject):
         `value` attribute of the LTN variable has one single dimension. In all the other cases, the first dimension
         will be considered as batch dimension, so no dimension will be added.
 
-    Raises
+    Raises:
     ------
     :class:`TypeError`
         Raises when the types of the input parameters are not correct.
     :class:`ValueError`
         Raises when the value of the `var_label` parameter is not correct.
 
-    Notes
+    Notes:
     -----
     - LTN variables are :ref:`LTN objects <noteltnobject>`. :class:`ltn.core.Variable` is a subclass of :class:`ltn.core.LTNObject`;
     - the first dimension of an LTN variable is associated with the number of individuals in the variable, while the other dimensions are associated with the features of the individuals;
     - setting `add_batch_dim` to `False` is useful, for instance, when an LTN variable is used to denote a sequence of indexes (for example indexes for retrieving values in tensors);
     - variable labels starting with '_diag' are reserved for diagonal quantification (:func:`ltn.core.diag`).
 
-    Examples
+    Examples:
     --------
     `add_batch_dim=True` has no effects on the variable since its `value` has more than one dimension, namely there is
     already a batch dimension.
 
     >>> import ltn
     >>> import torch
-    >>> x = ltn.Variable('x', torch.tensor([[3.4, 4.5],
-    ...                                     [6.7, 9.6]]), add_batch_dim=True)
+    >>> x = ltn.Variable("x", torch.tensor([[3.4, 4.5], [6.7, 9.6]]), add_batch_dim=True)
     >>> print(x)
     Variable(value=tensor([[3.4000, 4.5000],
             [6.7000, 9.6000]]), free_vars=['x'])
@@ -193,7 +189,7 @@ class Variable(LTNObject):
 
     `add_bath_dim=True` adds a batch dimension to the `value` of the variable since it has only one dimension.
 
-    >>> y = ltn.Variable('y', torch.tensor([3.4, 4.5, 8.9]), add_batch_dim=True)
+    >>> y = ltn.Variable("y", torch.tensor([3.4, 4.5, 8.9]), add_batch_dim=True)
     >>> print(y)
     Variable(value=tensor([[3.4000],
             [4.5000],
@@ -210,7 +206,7 @@ class Variable(LTNObject):
     `add_batch_dim=False` tells to LTNtorch to not add a batch dimension to the `value` of the variable. This is useful
     when a variable contains a sequence of indexes.
 
-    >>> z = ltn.Variable('z', torch.tensor([1, 2, 3]), add_batch_dim=False)
+    >>> z = ltn.Variable("z", torch.tensor([1, 2, 3]), add_batch_dim=False)
     >>> print(z)
     Variable(value=tensor([1, 2, 3]), free_vars=['z'])
     >>> print(z.value)
@@ -220,6 +216,7 @@ class Variable(LTNObject):
     >>> print(z.shape())
     torch.Size([3])
     """
+
     def __init__(self, var_label, individuals, add_batch_dim=True):
         # check inputs
         if not isinstance(var_label, str):
@@ -227,8 +224,9 @@ class Variable(LTNObject):
         if var_label.startswith("diag_"):
             raise ValueError("Labels starting with 'diag_' are reserved for diagonal quantification.")
         if not isinstance(individuals, torch.Tensor):
-            raise TypeError("Variable() : argument 'individuals' (position 2) must be a torch.Tensor, not "
-                            + str(type(individuals)))
+            raise TypeError(
+                "Variable() : argument 'individuals' (position 2) must be a torch.Tensor, not " + str(type(individuals))
+            )
 
         super(Variable, self).__init__(individuals, [var_label])
 
@@ -252,8 +250,7 @@ class Variable(LTNObject):
 
 
 def process_ltn_objects(objects):
-    """
-    This function prepares the list of LTN objects given in input for a predicate, function, or connective computation.
+    """This function prepares the list of LTN objects given in input for a predicate, function, or connective computation.
     In particular, it makes the shapes of the objects compatible, in such a way the logical operation that has to be
     computed after this pre-processing can be done by using element-wise operations.
     For example, if we have two variables in input that have different shapes or number of individuals, this function
@@ -271,7 +268,7 @@ def process_ltn_objects(objects):
     objects: :obj:`list`
         List of LTN objects of potentially different shapes for which we need to make the shape compatible.
 
-    Returns
+    Returns:
     ----------
     :obj:`list`
         The same list given in input but with new LTN objects which now have compatible shapes.
@@ -280,7 +277,7 @@ def process_ltn_objects(objects):
     :obj:`list`
         List of integers which contains the number of individuals of each variable contained in the previous list.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the type of the input parameter is incorrect.
@@ -294,16 +291,19 @@ def process_ltn_objects(objects):
     # due to a side effect
     # note that we copy only if the input object is a constant/variable with grad_fn or if the object has not
     # grad_fn attribute, namely it is a leaf tensor
-    objects_ = [LTNObject(torch.clone(o.value), copy.deepcopy(o.free_vars))
-                if (o.value.grad_fn is None or (isinstance(o, (Constant, Variable)) and o.value.grad_fn is not None))
-                else o for o in objects]
+    objects_ = [
+        LTNObject(torch.clone(o.value), copy.deepcopy(o.free_vars))
+        if (o.value.grad_fn is None or (isinstance(o, (Constant, Variable)) and o.value.grad_fn is not None))
+        else o
+        for o in objects
+    ]
     # this deep copy is necessary to avoid the function directly changes the free
     # variables and values contained in the given LTN objects. We do not want to directly change the input objects
     # Instead, we need to create new objects based on the input objects since it is possible we have to reuse the
     # input objects again in coming steps.
     vars_to_n = {}  # dict which maps each var to the number of its individuals
     for o in objects_:
-        for (v_idx, v) in enumerate(o.free_vars):
+        for v_idx, v in enumerate(o.free_vars):
             vars_to_n[v] = o.shape()[v_idx]
     vars = list(vars_to_n.keys())  # list of var labels
     n_individuals_per_var = list(vars_to_n.values())  # list of n individuals for each var
@@ -324,7 +324,7 @@ def process_ltn_objects(objects):
         o.value = o.value.permute(dims_permutation)
 
         # this flats the batch dimension of the processed LTN object if the flat is set to True
-        flatten_shape = [-1] + list(o.shape()[len(vars_in_obj)::])
+        flatten_shape = [-1] + list(o.shape()[len(vars_in_obj) : :])
         o.value = torch.reshape(o.value, shape=tuple(flatten_shape))
 
         # change the free variables of the LTN object since it contains now new variables on it
@@ -338,19 +338,19 @@ def process_ltn_objects(objects):
 
 
 class LambdaModel(nn.Module):
-    """
-    Simple `nn.Module` that implements a non-trainable model based on a lambda function or a function.
+    """Simple `nn.Module` that implements a non-trainable model based on a lambda function or a function.
 
     Parameters
     ----------
     func: :class:`function`
         Lambda function or function that has to be applied in the forward of the model.
 
-    Attributes
+    Attributes:
     ---------
     func: :class:`function`
         See func parameter.
     """
+
     def __init__(self, func):
         super(LambdaModel, self).__init__()
         self.func = func
@@ -360,8 +360,7 @@ class LambdaModel(nn.Module):
 
 
 class Predicate(nn.Module):
-    """
-    Class representing an LTN predicate.
+    r"""Class representing an LTN predicate.
 
     An LTN predicate is :ref:`grounded <notegrounding>` as a mathematical function (either pre-defined or learnable)
     that maps from some n-ary domain of individuals to a real number in [0,1] (fuzzy), which can be interpreted as a
@@ -378,7 +377,7 @@ class Predicate(nn.Module):
     func : :obj:`function`, default=None
         Function that becomes the :ref:`grounding <notegrounding>` of the LTN predicate.
 
-    Notes
+    Notes:
     -----
     - the output of an LTN predicate is always an :ref:`LTN object <noteltnobject>` (:class:`ltn.core.LTNObject`);
     - LTNtorch allows to define a predicate using a trainable model **or** a python function, not both;
@@ -390,12 +389,12 @@ class Predicate(nn.Module):
     - the attribute `free_vars` of the `LTNobject` output by the predicate tells which dimension corresponds to which variable in the `value` of the `LTNObject`. See :ref:`LTN broadcasting <broadcasting>` for more information;
     - to disable the :ref:`LTN broadcasting <broadcasting>`, see :func:`ltn.core.diag()`.
 
-    Attributes
+    Attributes:
     ----------
     model : :class:`torch.nn.Module` or :obj:`function`
         The :ref:`grounding <notegrounding>` of the LTN predicate.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the types of the input parameters are incorrect.
@@ -403,18 +402,15 @@ class Predicate(nn.Module):
     :class:`ValueError`
         Raises when the values of the input parameters are incorrect.
 
-    Examples
+    Examples:
     --------
     Unary predicate defined using a :class:`torch.nn.Sequential`.
 
     >>> import ltn
     >>> import torch
     >>> predicate_model = torch.nn.Sequential(
-    ...                         torch.nn.Linear(4, 2),
-    ...                         torch.nn.ELU(),
-    ...                         torch.nn.Linear(2, 1),
-    ...                         torch.nn.Sigmoid()
-    ...                   )
+    ...     torch.nn.Linear(4, 2), torch.nn.ELU(), torch.nn.Linear(2, 1), torch.nn.Sigmoid()
+    ... )
     >>> p = ltn.Predicate(model=predicate_model)
     >>> print(p)
     Predicate(model=Sequential(
@@ -449,7 +445,6 @@ class Predicate(nn.Module):
     ...         x = self.elu(self.dense1(x))
     ...         out = self.sigmoid(self.dense2(x))
     ...         return out
-    ...
     >>> predicate_model = PredicateModel()
     >>> b_p = ltn.Predicate(model=predicate_model)
     >>> print(b_p)
@@ -461,9 +456,7 @@ class Predicate(nn.Module):
     Binary predicate defined using a function. Note the call to `torch.cat` to merge the two inputs of the
     binary predicate.
 
-    >>> b_p_f = ltn.Predicate(func=lambda x, y: torch.nn.Sigmoid()(
-    ...                                             torch.sum(torch.cat([x, y], dim=1), dim=1)
-    ...                                         ))
+    >>> b_p_f = ltn.Predicate(func=lambda x, y: torch.nn.Sigmoid()(torch.sum(torch.cat([x, y], dim=1), dim=1)))
     >>> print(b_p_f)
     Predicate(model=LambdaModel())
 
@@ -493,8 +486,7 @@ class Predicate(nn.Module):
     - since a variable has been given, the `LTNObject` in output has one free variable;
     - the shape of the `LTNObject` in output is 2 since the predicate has been evaluated on a variable with two individuls.
 
-    >>> v = ltn.Variable('v', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
+    >>> v = ltn.Variable("v", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
     >>> out = p_f(v)
     >>> print(out)
     LTNObject(value=tensor([0.6682, 0.5898]), free_vars=['v'])
@@ -510,8 +502,7 @@ class Predicate(nn.Module):
     - like in the previous example, the `LTNObject` in output has just one free variable, since only one variable has been given to the predicate;
     - the shape of the `LTNObject` in output is 2 since the predicate has been evaluated on a variable with two individuals. The constant does not add dimensions to the output.
 
-    >>> v = ltn.Variable('v', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
+    >>> v = ltn.Variable("v", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
     >>> c = ltn.Constant(torch.tensor([0.4, 0.04, 0.23, 0.43]))
     >>> out = b_p_f(v, c)
     >>> print(out)
@@ -530,11 +521,8 @@ class Predicate(nn.Module):
     - the first dimension is dedicated to variable `x`, which is also the first one appearing in `free_vars`, while the second dimension is dedicated to variable `y`, which is the second one appearing in `free_vars`;
     - it is possible to access the `value` attribute for getting the results of the predicate. For example, at position `(1, 2)` there is the evaluation of the predicate on the second individual of `x` and third individuals of `y`.
 
-    >>> x = ltn.Variable('x', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
-    >>> y = ltn.Variable('y', torch.tensor([[0.4, 0.04, 0.23],
-    ...                                     [0.2, 0.04, 0.32],
-    ...                                     [0.06, 0.08, 0.3]]))
+    >>> x = ltn.Variable("x", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
+    >>> y = ltn.Variable("y", torch.tensor([[0.4, 0.04, 0.23], [0.2, 0.04, 0.32], [0.06, 0.08, 0.3]]))
     >>> out = b_p_f(x, y)
     >>> print(out)
     LTNObject(value=tensor([[0.7974, 0.7790, 0.7577],
@@ -549,40 +537,45 @@ class Predicate(nn.Module):
     >>> print(out.value[1, 2])
     tensor(0.6906)
     """
+
     def __init__(self, model=None, func=None):
-        """
-        Initializes the LTN predicate in two different ways:
-            1. if `model` is not None, it initializes the predicate with the given PyTorch model;
-            2. if `model` is None, it uses the `func` as a function to define
-            the LTN predicate. Note that, in this case, the LTN predicate is not learnable. So, the lambda function has
-            to be used only for simple predicates.
+        """Initializes the LTN predicate in two different ways:
+        1. if `model` is not None, it initializes the predicate with the given PyTorch model;
+        2. if `model` is None, it uses the `func` as a function to define
+        the LTN predicate. Note that, in this case, the LTN predicate is not learnable. So, the lambda function has
+        to be used only for simple predicates.
         """
         super(Predicate, self).__init__()
         if model is not None and func is not None:
-            raise ValueError("Both model and func parameters have been specified. Expected only one of "
-                             "the two parameters to be specified.")
+            raise ValueError(
+                "Both model and func parameters have been specified. Expected only one of "
+                "the two parameters to be specified."
+            )
 
         if model is None and func is None:
-            raise ValueError("Both model and func parameters have not been specified. Expected one of the two "
-                             "parameters to be specified.")
+            raise ValueError(
+                "Both model and func parameters have not been specified. Expected one of the two "
+                "parameters to be specified."
+            )
 
         if model is not None:
             if not isinstance(model, nn.Module):
-                raise TypeError("Predicate() : argument 'model' (position 1) must be a torch.nn.Module, "
-                                "not " + str(type(model)))
+                raise TypeError(
+                    "Predicate() : argument 'model' (position 1) must be a torch.nn.Module, not " + str(type(model))
+                )
             self.model = model
         else:
             if not isinstance(func, types.LambdaType):
-                raise TypeError("Predicate() : argument 'func' (position 2) must be a function, "
-                                "not " + str(type(model)))
+                raise TypeError(
+                    "Predicate() : argument 'func' (position 2) must be a function, not " + str(type(model))
+                )
             self.model = LambdaModel(func)
 
     def __repr__(self):
         return "Predicate(model=" + str(self.model) + ")"
 
     def forward(self, *inputs, **kwargs):
-        """
-        It computes the output of the predicate given some :ref:`LTN objects <noteltnobject>` in input.
+        """It computes the output of the predicate given some :ref:`LTN objects <noteltnobject>` in input.
 
         Before computing the predicate, it performs the :ref:`LTN broadcasting <broadcasting>` of the inputs.
 
@@ -591,13 +584,13 @@ class Predicate(nn.Module):
         inputs : :obj:`tuple` of :class:`ltn.core.LTNObject`
             Tuple of :ref:`LTN objects <noteltnobject>` for which the predicate has to be computed.
 
-        Returns
+        Returns:
         ----------
         :class:`ltn.core.LTNObject`
             An :ref:`LTNObject <noteltnobject>` whose `value` attribute contains the truth values representing the result of the
             predicate, while `free_vars` attribute contains the labels of the free variables contained in the result.
 
-        Raises
+        Raises:
         ----------
         :class:`TypeError`
             Raises when the types of the inputs are incorrect.
@@ -607,8 +600,9 @@ class Predicate(nn.Module):
         """
         inputs = list(inputs)
         if not all(isinstance(x, LTNObject) for x in inputs):
-            raise TypeError("Expected parameter 'inputs' to be a tuple of LTNObject, but got " + str([type(i)
-                                                                                                      for i in inputs]))
+            raise TypeError(
+                "Expected parameter 'inputs' to be a tuple of LTNObject, but got " + str([type(i) for i in inputs])
+            )
 
         proc_objs, output_vars, output_shape = process_ltn_objects(inputs)
 
@@ -616,9 +610,11 @@ class Predicate(nn.Module):
         output = self.model(*[o.value for o in proc_objs], **kwargs)
 
         # check if output of predicate contains only truth values, namely values in the range [0., 1.]
-        if not torch.all(torch.where(torch.logical_and(output >= 0., output <= 1.), 1., 0.)):
-            raise ValueError("Expected the output of a predicate to be in the range [0., 1.], but got some values "
-                             "outside of this range. Check your predicate implementation!")
+        if not torch.all(torch.where(torch.logical_and(output >= 0.0, output <= 1.0), 1.0, 0.0)):
+            raise ValueError(
+                "Expected the output of a predicate to be in the range [0., 1.], but got some values "
+                "outside of this range. Check your predicate implementation!"
+            )
 
         output = torch.reshape(output, tuple(output_shape))
         # we assure the output is float in the case it is double to avoid type incompatibilities
@@ -628,8 +624,7 @@ class Predicate(nn.Module):
 
 
 class Function(nn.Module):
-    r"""
-    Class representing LTN functions.
+    r"""Class representing LTN functions.
 
     An LTN function is :ref:`grounded <notegrounding>` as a mathematical function (either pre-defined or learnable)
     that maps from some n-ary domain of individuals to a tensor (individual) in the Real field.
@@ -646,12 +641,12 @@ class Function(nn.Module):
     func : :obj:`function`, default=None
         Function that becomes the :ref:`grounding <notegrounding>` of the LTN function.
 
-    Attributes
+    Attributes:
     ----------
     model : :class:`torch.nn.Module` or :obj:`function`
         The :ref:`grounding <notegrounding>` of the LTN function.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the types of the input parameters are incorrect.
@@ -659,7 +654,7 @@ class Function(nn.Module):
     :class:`ValueError`
         Raises when the values of the input parameters are incorrect.
 
-    Notes
+    Notes:
     -----
     - the output of an LTN function is always an :ref:`LTN object <noteltnobject>` (:class:`ltn.core.LTNObject`);
     - LTNtorch allows to define a function using a trainable model **or** a python function, not both;
@@ -671,17 +666,13 @@ class Function(nn.Module):
     - the attribute `free_vars` of the `LTNobject` output by the function tells which dimension corresponds to which variable in the `value` of the `LTNObject`. See :ref:`LTN broadcasting <broadcasting>` for more information;
     - to disable the :ref:`LTN broadcasting <broadcasting>`, see :func:`ltn.core.diag()`.
 
-    Examples
+    Examples:
     --------
     Unary function defined using a :class:`torch.nn.Sequential`.
 
     >>> import ltn
     >>> import torch
-    >>> function_model = torch.nn.Sequential(
-    ...                         torch.nn.Linear(4, 3),
-    ...                         torch.nn.ELU(),
-    ...                         torch.nn.Linear(3, 2)
-    ...                   )
+    >>> function_model = torch.nn.Sequential(torch.nn.Linear(4, 3), torch.nn.ELU(), torch.nn.Linear(3, 2))
     >>> f = ltn.Function(model=function_model)
     >>> print(f)
     Function(model=Sequential(
@@ -695,9 +686,7 @@ class Function(nn.Module):
     of the individuals. Notice that the output of the print is `Function(model=LambdaModel())`. This indicates that the
     LTN function has been defined using a function, through the `func` parameter of the constructor.
 
-    >>> f_f = ltn.Function(func=lambda x: torch.repeat_interleave(
-    ...                                              torch.sum(x, dim=1, keepdim=True), 2, dim=1)
-    ...                                         )
+    >>> f_f = ltn.Function(func=lambda x: torch.repeat_interleave(torch.sum(x, dim=1, keepdim=True), 2, dim=1))
     >>> print(f_f)
     Function(model=LambdaModel())
 
@@ -716,7 +705,6 @@ class Function(nn.Module):
     ...         x = self.elu(self.dense1(x))
     ...         out = self.dense2(x)
     ...         return out
-    ...
     >>> function_model = FunctionModel()
     >>> b_f = ltn.Function(model=function_model)
     >>> print(b_f)
@@ -727,10 +715,11 @@ class Function(nn.Module):
     Binary function defined using a function. Note the call to `torch.cat` to merge the two inputs of the
     binary function.
 
-    >>> b_f_f = ltn.Function(func=lambda x, y:
-    ...                                 torch.repeat_interleave(
-    ...                                     torch.sum(torch.cat([x, y], dim=1), dim=1, keepdim=True), 2,
-    ...                                     dim=1))
+    >>> b_f_f = ltn.Function(
+    ...     func=lambda x, y: torch.repeat_interleave(
+    ...         torch.sum(torch.cat([x, y], dim=1), dim=1, keepdim=True), 2, dim=1
+    ...     )
+    ... )
     >>> print(b_f_f)
     Function(model=LambdaModel())
 
@@ -759,8 +748,7 @@ class Function(nn.Module):
     - since a variable has been given, the `LTNObject` in output has one free variable;
     - the shape of the `LTNObject` in output is `(2, 2)` since the function has been evaluated on a variable with two individuls and returns individuals in :math:`\mathbb{R}^2`.
 
-    >>> v = ltn.Variable('v', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
+    >>> v = ltn.Variable("v", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
     >>> out = f_f(v)
     >>> print(out)
     LTNObject(value=tensor([[0.7000, 0.7000],
@@ -778,8 +766,7 @@ class Function(nn.Module):
     - like in the previous example, the `LTNObject` in output has just one free variable, since only one variable has been given to the predicate;
     - the shape of the `LTNObject` in output is `(2, 2)` since the function has been evaluated on a variable with two individuals and returns individuals in :math:`\mathbb{R}^2`. The constant does not add dimensions to the output.
 
-    >>> v = ltn.Variable('v', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
+    >>> v = ltn.Variable("v", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
     >>> c = ltn.Constant(torch.tensor([0.4, 0.04, 0.23, 0.43]))
     >>> out = b_f_f(v, c)
     >>> print(out)
@@ -800,11 +787,8 @@ class Function(nn.Module):
     - the first dimension is dedicated to variable `x`, which is also the first one appearing in `free_vars`, the second dimension is dedicated to variable `y`, which is the second one appearing in `free_vars`, while the last dimensions is dedicated to the features of the individuals in output;
     - it is possible to access the `value` attribute for getting the results of the function. For example, at position `(1, 2)` there is the evaluation of the function on the second individual of `x` and third individuals of `y`.
 
-    >>> x = ltn.Variable('x', torch.tensor([[0.4, 0.3],
-    ...                                     [0.32, 0.043]]))
-    >>> y = ltn.Variable('y', torch.tensor([[0.4, 0.04, 0.23],
-    ...                                     [0.2, 0.04, 0.32],
-    ...                                     [0.06, 0.08, 0.3]]))
+    >>> x = ltn.Variable("x", torch.tensor([[0.4, 0.3], [0.32, 0.043]]))
+    >>> y = ltn.Variable("y", torch.tensor([[0.4, 0.04, 0.23], [0.2, 0.04, 0.32], [0.06, 0.08, 0.3]]))
     >>> out = b_f_f(x, y)
     >>> print(out)
     LTNObject(value=tensor([[[1.3700, 1.3700],
@@ -831,39 +815,41 @@ class Function(nn.Module):
     """
 
     def __init__(self, model=None, func=None):
-        """
-        Initializes the LTN function in two different ways:
-            1. if `model` is not None, it initializes the function with the given PyTorch model;
-            2. if `model` is None, it uses the `func` as a lambda function or a function to represent
-            the LTN function. Note that, in this case, the LTN function is not learnable. So, the lambda function has
-            to be used only for simple functions.
+        """Initializes the LTN function in two different ways:
+        1. if `model` is not None, it initializes the function with the given PyTorch model;
+        2. if `model` is None, it uses the `func` as a lambda function or a function to represent
+        the LTN function. Note that, in this case, the LTN function is not learnable. So, the lambda function has
+        to be used only for simple functions.
         """
         super(Function, self).__init__()
         if model is not None and func is not None:
-            raise ValueError("Both model and func parameters have been specified. Expected only one of "
-                             "the two parameters to be specified.")
+            raise ValueError(
+                "Both model and func parameters have been specified. Expected only one of "
+                "the two parameters to be specified."
+            )
 
         if model is None and func is None:
-            raise ValueError("Both model and func parameters have not been specified. Expected one of the two "
-                             "parameters to be specified.")
+            raise ValueError(
+                "Both model and func parameters have not been specified. Expected one of the two "
+                "parameters to be specified."
+            )
 
         if model is not None:
             if not isinstance(model, nn.Module):
-                raise TypeError("Function() : argument 'model' (position 1) must be a torch.nn.Module, "
-                                "not " + str(type(model)))
+                raise TypeError(
+                    "Function() : argument 'model' (position 1) must be a torch.nn.Module, not " + str(type(model))
+                )
             self.model = model
         else:
             if not isinstance(func, types.LambdaType):
-                raise TypeError("Function() : argument 'func' (position 2) must be a function, "
-                                "not " + str(type(model)))
+                raise TypeError("Function() : argument 'func' (position 2) must be a function, not " + str(type(model)))
             self.model = LambdaModel(func)
 
     def __repr__(self):
         return "Function(model=" + str(self.model) + ")"
 
     def forward(self, *inputs, **kwargs):
-        """
-        It computes the output of the function given some :ref:`LTN objects <noteltnobject>` in input.
+        """It computes the output of the function given some :ref:`LTN objects <noteltnobject>` in input.
 
         Before computing the function, it performs the :ref:`LTN broadcasting <broadcasting>` of the inputs.
 
@@ -872,21 +858,22 @@ class Function(nn.Module):
         inputs : :obj:`tuple` of :class:`ltn.core.LTNObject`
             Tuple of :ref:`LTN objects <noteltnobject>` for which the function has to be computed.
 
-        Returns
+        Returns:
         ----------
         :class:`ltn.core.LTNObject`
             An :ref:`LTNObject <noteltnobject>` whose `value` attribute contains the result of the
             function, while `free_vars` attribute contains the labels of the free variables contained in the result.
 
-        Raises
+        Raises:
         ----------
         :class:`TypeError`
             Raises when the types of the inputs are incorrect.
         """
         inputs = list(inputs)
         if not all(isinstance(x, LTNObject) for x in inputs):
-            raise TypeError("Expected parameter 'inputs' to be a tuple of LTNObject, but got " + str([type(i)
-                                                                                                      for i in inputs]))
+            raise TypeError(
+                "Expected parameter 'inputs' to be a tuple of LTNObject, but got " + str([type(i) for i in inputs])
+            )
 
         proc_objs, output_vars, output_shape = process_ltn_objects(inputs)
 
@@ -901,8 +888,7 @@ class Function(nn.Module):
 
 
 def diag(*vars):
-    """
-    Sets the given LTN variables for :ref:`diagonal quantification <diagonal>`.
+    """Sets the given LTN variables for :ref:`diagonal quantification <diagonal>`.
 
     The diagonal quantification disables the :ref:`LTN broadcasting <broadcasting>` for the given variables.
 
@@ -911,12 +897,12 @@ def diag(*vars):
     vars : :obj:`tuple` of :class:`ltn.core.Variable`
         Tuple of LTN variables for which the diagonal quantification has to be set.
 
-    Returns
+    Returns:
     ---------
     :obj:`list` of :class:`ltn.core.Variable`
         List of the same LTN variables given in input, prepared for the use of :ref:`diagonal quantification <diagonal>`.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the types of the input parameters are incorrect.
@@ -924,18 +910,18 @@ def diag(*vars):
     :class:`ValueError`
         Raises when the values of the input parameters are incorrect.
 
-    Notes
+    Notes:
     -----
     - diagonal quantification has been designed to work with quantified statements, however, it could be used also to reduce the combinations of individuals for which a predicate has to be computed, making the computation more efficient;
     - diagonal quantification is particularly useful when we need to compute a predicate, or function, on specific tuples of variables' individuals only;
     - diagonal quantification expects the given variables to have the same number of individuals.
 
-    See Also
+    See Also:
     --------
     :func:`ltn.core.undiag`
         It allows to disable the diagonal quantification for the given variables.
 
-    Examples
+    Examples:
     --------
     Behavior of a predicate without diagonal quantification. Note that:
 
@@ -945,11 +931,9 @@ def diag(*vars):
 
     >>> import ltn
     >>> import torch
-    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(
-    ...                                         torch.sum(torch.cat([a, b], dim=1), dim=1)
-    ...                                     ))
-    >>> x = ltn.Variable('x', torch.tensor([[0.3, 0.56, 0.43], [0.3, 0.5, 0.04]]))
-    >>> y = ltn.Variable('y', torch.tensor([[0.4, 0.004], [0.3, 0.32]]))
+    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(torch.sum(torch.cat([a, b], dim=1), dim=1)))
+    >>> x = ltn.Variable("x", torch.tensor([[0.3, 0.56, 0.43], [0.3, 0.5, 0.04]]))
+    >>> y = ltn.Variable("y", torch.tensor([[0.4, 0.004], [0.3, 0.32]]))
     >>> out = p(x, y)
     >>> print(out.value)
     tensor([[0.8447, 0.8710],
@@ -984,13 +968,16 @@ def diag(*vars):
         raise TypeError("Expected parameter 'vars' to be a tuple of Variable, but got " + str([type(v) for v in vars]))
     # check if the user has given only one variable
     if not len(vars) > 1:
-        raise ValueError("Expected parameter 'vars' to be a tuple of more than one Variable, but got just one Variable.")
+        raise ValueError(
+            "Expected parameter 'vars' to be a tuple of more than one Variable, but got just one Variable."
+        )
     # check if variables have the same number of individuals, assuming the first dimension is the batch dimension
     n_individuals = [var.shape()[0] for var in vars]
-    if not len(
-        set(n_individuals)) == 1:
-        raise ValueError("Expected the given LTN variables to have the same number of individuals, "
-                         "but got the following numbers of individuals " + str([v.shape()[0] for v in vars]))
+    if not len(set(n_individuals)) == 1:
+        raise ValueError(
+            "Expected the given LTN variables to have the same number of individuals, "
+            "but got the following numbers of individuals " + str([v.shape()[0] for v in vars])
+        )
     diag_label = "diag_" + "_".join([var.latent_var for var in vars])
     for var in vars:
         var.free_vars = [diag_label]
@@ -998,8 +985,7 @@ def diag(*vars):
 
 
 def undiag(*vars):
-    """
-    Resets the :ref:`LTN broadcasting <broadcasting>` for the given LTN variables.
+    """Resets the :ref:`LTN broadcasting <broadcasting>` for the given LTN variables.
 
     In other words, it removes the :ref:`diagonal quantification <diagonal>` setting from the given variables.
 
@@ -1008,22 +994,22 @@ def undiag(*vars):
     vars : :obj:`tuple` of :class:`ltn.core.Variable`
         Tuple of LTN variables for which the :ref:`diagonal quantification <diagonal>` setting has to be removed.
 
-    Returns
+    Returns:
     ----------
     :obj:`list`
         List of the same LTN variables given in input, with the :ref:`diagonal quantification <diagonal>` setting removed.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the types of the input parameters are incorrect.
 
-    See Also
+    See Also:
     --------
     :func:`ltn.core.diag`
         It allows to set the :ref:`diagonal quantification <diagonal>` for the given variables.
 
-    Examples
+    Examples:
     --------
     Behavior of predicate with diagonal quantification. Note that:
 
@@ -1035,11 +1021,9 @@ def undiag(*vars):
 
     >>> import ltn
     >>> import torch
-    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(
-    ...                                         torch.sum(torch.cat([a, b], dim=1), dim=1)
-    ...                                     ))
-    >>> x = ltn.Variable('x', torch.tensor([[0.3, 0.56, 0.43], [0.3, 0.5, 0.04]]))
-    >>> y = ltn.Variable('y', torch.tensor([[0.4, 0.004], [0.3, 0.32]]))
+    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(torch.sum(torch.cat([a, b], dim=1), dim=1)))
+    >>> x = ltn.Variable("x", torch.tensor([[0.3, 0.56, 0.43], [0.3, 0.5, 0.04]]))
+    >>> y = ltn.Variable("y", torch.tensor([[0.4, 0.004], [0.3, 0.32]]))
     >>> x, y = ltn.diag(x, y)
     >>> out = p(x, y)
     >>> print(out.value)
@@ -1077,8 +1061,7 @@ def undiag(*vars):
 
 
 class Connective:
-    """
-    Class representing an LTN connective.
+    r"""Class representing an LTN connective.
 
     An LTN connective is :ref:`grounded <notegrounding>` as a fuzzy connective operator.
 
@@ -1091,17 +1074,17 @@ class Connective:
     connective_op : :class:`ltn.fuzzy_ops.ConnectiveOperator`
         The unary/binary fuzzy connective operator that becomes the :ref:`grounding <notegrounding>` of the LTN connective.
 
-    Attributes
+    Attributes:
     -----------
     connective_op : :class:`ltn.fuzzy_ops.ConnectiveOperator`
         See `connective_op` parameter.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the type of the input parameter is incorrect.
 
-    Notes
+    Notes:
     -----
     - the LTN connective supports various fuzzy connective operators. They can be found in :ref:`ltn.fuzzy_ops <fuzzyop>`;
     - the LTN connective allows to use these fuzzy operators with LTN formulas. It takes care of combining sub-formulas which have different variables appearing in them (:ref:`LTN broadcasting <broadcasting>`).
@@ -1110,12 +1093,12 @@ class Connective:
 
     .. automethod:: __call__
 
-    See Also
+    See Also:
     --------
     :class:`ltn.fuzzy_ops`
         The `ltn.fuzzy_ops` module contains the definition of common fuzzy connective operators that can be used with LTN connectives.
 
-    Examples
+    Examples:
     --------
     Use of :math:`\\land` to create a formula which is the conjunction of two predicates. Note that:
 
@@ -1131,21 +1114,11 @@ class Connective:
 
     >>> import ltn
     >>> import torch
-    >>> p = ltn.Predicate(func=lambda a: torch.nn.Sigmoid()(
-    ...                                     torch.sum(a, dim=1)
-    ...                                  ))
-    >>> q = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(
-    ...                                         torch.sum(torch.cat([a, b], dim=1),
-    ...                                     dim=1)))
-    >>> x = ltn.Variable('x', torch.tensor([[0.3, 0.5],
-    ...                                     [0.04, 0.43]]))
-    >>> y = ltn.Variable('y', torch.tensor([[0.5, 0.23],
-    ...                                     [4.3, 9.3],
-    ...                                     [4.3, 0.32]]))
-    >>> z = ltn.Variable('z', torch.tensor([[0.3, 0.4, 0.43],
-    ...                                     [0.4, 4.3, 5.1],
-    ...                                     [1.3, 4.3, 2.3],
-    ...                                     [0.4, 0.2, 1.2]]))
+    >>> p = ltn.Predicate(func=lambda a: torch.nn.Sigmoid()(torch.sum(a, dim=1)))
+    >>> q = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(torch.sum(torch.cat([a, b], dim=1), dim=1)))
+    >>> x = ltn.Variable("x", torch.tensor([[0.3, 0.5], [0.04, 0.43]]))
+    >>> y = ltn.Variable("y", torch.tensor([[0.5, 0.23], [4.3, 9.3], [4.3, 0.32]]))
+    >>> z = ltn.Variable("z", torch.tensor([[0.3, 0.4, 0.43], [0.4, 4.3, 5.1], [1.3, 4.3, 2.3], [0.4, 0.2, 1.2]]))
     >>> And = ltn.Connective(ltn.fuzzy_ops.AndProd())
     >>> print(And)
     Connective(connective_op=AndProd(stable=True))
@@ -1174,16 +1147,17 @@ class Connective:
 
     def __init__(self, connective_op):
         if not isinstance(connective_op, ltn.fuzzy_ops.ConnectiveOperator):
-            raise TypeError("Connective() : argument 'connective_op' (position 1) must be a "
-                            "ltn.fuzzy_ops.ConnectiveOperator, not " + str(type(connective_op)))
+            raise TypeError(
+                "Connective() : argument 'connective_op' (position 1) must be a "
+                "ltn.fuzzy_ops.ConnectiveOperator, not " + str(type(connective_op))
+            )
         self.connective_op = connective_op
 
     def __repr__(self):
         return "Connective(connective_op=" + str(self.connective_op) + ")"
 
     def __call__(self, *operands, **kwargs):
-        """
-        It applies the selected fuzzy connective operator (`connective_op` attribute) to the operands
+        """It applies the selected fuzzy connective operator (`connective_op` attribute) to the operands
         (:ref:`LTN objects <noteltnobject>`) given in input.
 
         Parameters
@@ -1192,13 +1166,13 @@ class Connective:
             Tuple of :ref:`LTN objects <noteltnobject>` representing the operands to which the fuzzy connective
             operator has to be applied.
 
-        Returns
+        Returns:
         ----------
         :class:`ltn.core.LTNObject`
             The `LTNObject` that is the result of the application of the fuzzy connective operator to the given
             :ref:`LTN objects <noteltnobject>`.
 
-        Raises
+        Raises:
         ----------
         :class:`TypeError`
             Raises when the types of the input parameters are incorrect.
@@ -1215,8 +1189,9 @@ class Connective:
             raise ValueError("Expected two operands for a binary connective, but got " + str(len(operands)))
 
         if not all(isinstance(x, LTNObject) for x in operands):
-            raise TypeError("Expected parameter 'operands' to be a tuple of LTNObject, but got " +
-                            str([type(o) for o in operands]))
+            raise TypeError(
+                "Expected parameter 'operands' to be a tuple of LTNObject, but got " + str([type(o) for o in operands])
+            )
 
         # check if operands are in [0., 1.]
         ltn.fuzzy_ops.check_values(*[o.value for o in operands])
@@ -1232,8 +1207,7 @@ class Connective:
 
 
 class Quantifier:
-    """
-    Class representing an LTN quantifier.
+    r"""Class representing an LTN quantifier.
 
     An LTN quantifier is :ref:`grounded <notegrounding>` as a fuzzy aggregation operator. See :ref:`quantification in LTN <quantification>`
     for more information about quantification.
@@ -1245,14 +1219,14 @@ class Quantifier:
     quantifier : :obj:`str`
         String indicating the quantification that has to be performed ('e' for ∃, or 'f' for ∀).
 
-    Attributes
+    Attributes:
     -----------
     agg_op : :class:`ltn.fuzzy_ops.AggregationOperator`
         See `agg_op` parameter.
     quantifier : :obj:`str`
         See `quantifier` parameter.
 
-    Raises
+    Raises:
     ----------
     :class:`TypeError`
         Raises when the type of the `agg_op` parameter is incorrect.
@@ -1260,7 +1234,7 @@ class Quantifier:
     :class:`ValueError`
         Raises when the value of the `quantifier` parameter is incorrect.
 
-    Notes
+    Notes:
     -----
     - the LTN quantifier supports various fuzzy aggregation operators, which can be found in :class:`ltn.fuzzy_ops`;
     - the LTN quantifier allows to use these fuzzy aggregators with LTN formulas. It takes care of selecting the formula (`LTNObject`) dimensions to aggregate, given some LTN variables in arguments.
@@ -1270,13 +1244,13 @@ class Quantifier:
 
     .. automethod:: __call__
 
-    See Also
+    See Also:
     --------
     :class:`ltn.fuzzy_ops`
         The `ltn.fuzzy_ops` module contains the definition of common fuzzy aggregation operators that can be used with
         LTN quantifiers.
 
-    Examples
+    Examples:
     --------
     Behavior of a binary predicate evaluated on two variables. Note that:
 
@@ -1285,14 +1259,9 @@ class Quantifier:
 
     >>> import ltn
     >>> import torch
-    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(
-    ...                                         torch.sum(torch.cat([a, b], dim=1),
-    ...                                     dim=1)))
-    >>> x = ltn.Variable('x', torch.tensor([[0.3, 1.3],
-    ...                                     [0.3, 0.3]]))
-    >>> y = ltn.Variable('y', torch.tensor([[2.3, 0.3, 0.4],
-    ...                                     [1.2, 3.4, 1.3],
-    ...                                     [2.3, 1.4, 1.4]]))
+    >>> p = ltn.Predicate(func=lambda a, b: torch.nn.Sigmoid()(torch.sum(torch.cat([a, b], dim=1), dim=1)))
+    >>> x = ltn.Variable("x", torch.tensor([[0.3, 1.3], [0.3, 0.3]]))
+    >>> y = ltn.Variable("y", torch.tensor([[2.3, 0.3, 0.4], [1.2, 3.4, 1.3], [2.3, 1.4, 1.4]]))
     >>> out = p(x, y)
     >>> print(out)
     LTNObject(value=tensor([[0.9900, 0.9994, 0.9988],
@@ -1314,7 +1283,7 @@ class Quantifier:
     - the attribute `free_vars` of the `LTNObject` in output contains only the label of variable `y`. This is because variable `x` has been quantified, namely it is not a free variable anymore;
     - in LTNtorch, the quantification is performed by computing the value of the predicate first and then by aggregating on the selected dimensions, specified by the quantified variables.
 
-    >>> Forall = ltn.Quantifier(ltn.fuzzy_ops.AggregPMeanError(), quantifier='f')
+    >>> Forall = ltn.Quantifier(ltn.fuzzy_ops.AggregPMeanError(), quantifier="f")
     >>> print(Forall)
     Quantifier(agg_op=AggregPMeanError(p=2, stable=True), quantifier='f')
     >>> out = Forall(x, p(x, y))
@@ -1349,7 +1318,7 @@ class Quantifier:
     - `quantifier='e'` means that we are defining the fuzzy semantics for the existential quantifier;
     - LTNtorch supports various sematics for quantifiers, here we use :class:`ltn.fuzzy_ops.AggregPMean` for :math:`\\exists`.
 
-    >>> Exists = ltn.Quantifier(ltn.fuzzy_ops.AggregPMean(), quantifier='e')
+    >>> Exists = ltn.Quantifier(ltn.fuzzy_ops.AggregPMean(), quantifier="e")
     >>> print(Exists)
     Quantifier(agg_op=AggregPMean(p=2, stable=True), quantifier='e')
     >>> out = Forall(x, Exists(y, p(x, y)))
@@ -1372,9 +1341,7 @@ class Quantifier:
     - notice the result changes compared to the previous example (:math:`\\forall x \\forall y P(x, y)`). This is due to the fact that some truth values of the result of the predicate are not considered in the aggregation due to guarded quantification. These values are at positions `(1, 0)`, `(1, 1)`, and `(1, 2)`, namely all the positions related with the second individual of `x` in the result of the predicate;
     - notice that the shape of the `LTNObject` in output and its attribute `free_vars` remain the same compared to the previous example. This is because the quantification is still on both variables, namely it is perfomed on both dimensions of the result of the predicate.
 
-    >>> out = Forall([x, y], p(x, y),
-    ...             cond_vars=[x],
-    ...             cond_fn=lambda x: torch.less(torch.sum(x.value, dim=1), 1.))
+    >>> out = Forall([x, y], p(x, y), cond_vars=[x], cond_fn=lambda x: torch.less(torch.sum(x.value, dim=1), 1.0))
     >>> print(out)
     LTNObject(value=tensor(0.9844, dtype=torch.float64), free_vars=[])
     >>> print(out.value)
@@ -1392,12 +1359,10 @@ class Quantifier:
     - the predicate is computed only on the given tuples of individuals in a one-to-one correspondence, namely on the first individual of `x` and `y`, and second individual of `x` and `y`;
     - the result changes compared to the case without diagonal quantification. This is due to the fact that we are aggregating a smaller number of truth values since the predicate has been computed only two times.
 
-    >>> x = ltn.Variable('x', torch.tensor([[0.3, 1.3],
-    ...                                     [0.3, 0.3]]))
-    >>> y = ltn.Variable('y', torch.tensor([[2.3, 0.3],
-    ...                                    [1.2, 3.4]]))
-    >>> out = Forall(ltn.diag(x, y), p(x, y)) # with diagonal quantification
-    >>> out_without_diag = Forall([x, y], p(x, y)) # without diagonal quantification
+    >>> x = ltn.Variable("x", torch.tensor([[0.3, 1.3], [0.3, 0.3]]))
+    >>> y = ltn.Variable("y", torch.tensor([[2.3, 0.3], [1.2, 3.4]]))
+    >>> out = Forall(ltn.diag(x, y), p(x, y))  # with diagonal quantification
+    >>> out_without_diag = Forall([x, y], p(x, y))  # without diagonal quantification
     >>> print(out_without_diag)
     LTNObject(value=tensor(0.9788), free_vars=[])
     >>> print(out_without_diag.value)
@@ -1411,23 +1376,27 @@ class Quantifier:
     >>> print(out.shape())
     torch.Size([])
     """
+
     def __init__(self, agg_op, quantifier):
         if not isinstance(agg_op, ltn.fuzzy_ops.AggregationOperator):
-            raise TypeError("Quantifier() : argument 'agg_op' (position 1) must be a "
-                            "ltn.fuzzy_ops.AggregationOperator, not " + str(type(agg_op)))
+            raise TypeError(
+                "Quantifier() : argument 'agg_op' (position 1) must be a "
+                "ltn.fuzzy_ops.AggregationOperator, not " + str(type(agg_op))
+            )
         self.agg_op = agg_op
         if quantifier not in ["f", "e"]:
-            raise ValueError("Expected parameter 'quantifier' to be the string 'e', "
-                             "for existential quantifier, or the string 'f', "
-                             "for universal quantifier, but got " + str(quantifier))
+            raise ValueError(
+                "Expected parameter 'quantifier' to be the string 'e', "
+                "for existential quantifier, or the string 'f', "
+                "for universal quantifier, but got " + str(quantifier)
+            )
         self.quantifier = quantifier
 
     def __repr__(self):
         return "Quantifier(agg_op=" + str(self.agg_op) + ", quantifier='" + self.quantifier + "')"
 
     def __call__(self, vars, formula, cond_vars=None, cond_fn=None, **kwargs):
-        """
-        It applies the selected aggregation operator (`agg_op` attribute) to the formula given in input based on the
+        """It applies the selected aggregation operator (`agg_op` attribute) to the formula given in input based on the
         selected variables.
 
         It allows also to perform a :ref:`guarded quantification <guarded>` by setting `cond_vars` and `cond_fn`
@@ -1444,7 +1413,7 @@ class Quantifier:
         cond_fn : :class:`function`, default=None
             Function representing the :ref:`guarded quantification <guarded>` condition.
 
-        Raises
+        Raises:
         ----------
         :class:`TypeError`
             Raises when the types of the input parameters are incorrect.
@@ -1455,16 +1424,21 @@ class Quantifier:
         """
         # first of all, check if user has correctly set the condition vars and the condition function
         if cond_vars is not None and cond_fn is None:
-            raise ValueError("Since 'cond_fn' parameter has been set, 'cond_vars' parameter must be set as well, "
-                             "but got None.")
+            raise ValueError(
+                "Since 'cond_fn' parameter has been set, 'cond_vars' parameter must be set as well, but got None."
+            )
         if cond_vars is None and cond_fn is not None:
-            raise ValueError("Since 'cond_vars' parameter has been set, 'cond_fn' parameter must be set as well, "
-                             "but got None.")
+            raise ValueError(
+                "Since 'cond_vars' parameter has been set, 'cond_fn' parameter must be set as well, but got None."
+            )
         # check that vars is a list of LTN variables or a single LTN variable
         if not all(isinstance(x, Variable) for x in vars) if isinstance(vars, list) else not isinstance(vars, Variable):
-            raise TypeError("Expected parameter 'vars' to be a list of Variable or a "
-                            "Variable, but got " + str([type(v) for v in vars])
-                            if isinstance(vars, list) else type(vars))
+            raise TypeError(
+                "Expected parameter 'vars' to be a list of Variable or a "
+                "Variable, but got " + str([type(v) for v in vars])
+                if isinstance(vars, list)
+                else type(vars)
+            )
 
         # check that formula is an LTNObject
         if not isinstance(formula, LTNObject):
@@ -1482,11 +1456,17 @@ class Quantifier:
         # check if guarded quantification has to be performed
         if cond_fn is not None and cond_vars is not None:
             # check that cond_vars are LTN variables
-            if not all(isinstance(x, Variable) for x in cond_vars) if isinstance(cond_vars, list) \
-                    else not isinstance(cond_vars, Variable):
-                raise TypeError("Expected parameter 'cond_vars' to be a list of Variable or a "
-                                "Variable, but got " + str([type(v) for v in cond_vars])
-                                if isinstance(cond_vars, list) else type(cond_vars))
+            if (
+                not all(isinstance(x, Variable) for x in cond_vars)
+                if isinstance(cond_vars, list)
+                else not isinstance(cond_vars, Variable)
+            ):
+                raise TypeError(
+                    "Expected parameter 'cond_vars' to be a list of Variable or a "
+                    "Variable, but got " + str([type(v) for v in cond_vars])
+                    if isinstance(cond_vars, list)
+                    else type(cond_vars)
+                )
             # check that cond_fn is a function
             if not isinstance(cond_fn, types.LambdaType):
                 raise TypeError("Expected parameter 'cond_fn' to be a function, but got " + str(type(cond_fn)))
@@ -1508,12 +1488,8 @@ class Quantifier:
             # The result of the aggregation operator in such case is often not defined (e.g. NaN).
             # We replace the result with 0.0 if the semantics of the aggregator is exists,
             # or 1.0 if the semantics of the aggregator is forall.
-            rep_value = 1. if self.quantifier == "f" else 0.
-            output = torch.where(
-                torch.isnan(output),
-                rep_value,
-                output.double()
-            )
+            rep_value = 1.0 if self.quantifier == "f" else 0.0
+            output = torch.where(torch.isnan(output), rep_value, output.double())
         else:  # in this case, the guarded quantification has not to be performed
             # aggregation_dims are the dimensions on which the aggregation has to be performed
             # the aggregator aggregates only on the axes given by aggregations_dims
@@ -1527,8 +1503,7 @@ class Quantifier:
 
     @staticmethod
     def compute_mask(formula, cond_vars, cond_fn, aggregation_vars):
-        """
-        It computes the mask for performing the guarded quantification on the formula given in input.
+        """It computes the mask for performing the guarded quantification on the formula given in input.
 
         Parameters
         ----------
@@ -1541,7 +1516,7 @@ class Quantifier:
         aggregation_vars: :obj:`list`
             List of labels of the variables on which the quantification has to be performed.
 
-        Returns
+        Returns:
         ----------
         (:class:`LTNObject`, :class:`LTNObject`)
             Tuple where the first element is the input formula transposed in such a way that the
@@ -1598,8 +1573,7 @@ class Quantifier:
 
     @staticmethod
     def transpose_vars(object, new_vars_order):
-        """
-        It transposes the input LTN object using the order of variables given in `new_vars_order` parameter.
+        """It transposes the input LTN object using the order of variables given in `new_vars_order` parameter.
 
         Parameters
         ----------
@@ -1608,7 +1582,7 @@ class Quantifier:
         new_vars_order: :obj:`list`
             List containing the order of variables (expressed by labels) to transpose the input object.
 
-        Returns
+        Returns:
         -----------
         :class:`LTNObject`
             The input LTN object transposed according to the order in `new_vars_order` parameter.

@@ -4,11 +4,22 @@
 import copy
 
 import pytest
-import numpy as np
 import ltn
-from ltn import LTNObject, Constant, Variable, process_ltn_objects, Predicate, Function, LambdaModel, diag, undiag, \
-    Connective, Quantifier
+from ltn import (
+    LTNObject,
+    Constant,
+    Variable,
+    process_ltn_objects,
+    Predicate,
+    Function,
+    LambdaModel,
+    diag,
+    undiag,
+    Connective,
+    Quantifier,
+)
 import torch
+
 torch.manual_seed(2020)
 torch.set_printoptions(precision=4)
 
@@ -34,8 +45,9 @@ def test_LTNObject():
 
     obj = LTNObject(good_value, good_var_labels)
 
-    assert obj.__repr__() == "LTNObject(value=tensor([1, 2, 3, 4]), free_vars=['x'])", "The __repr__ method " \
-                                                                                       "should return this exact value"
+    assert obj.__repr__() == "LTNObject(value=tensor([1, 2, 3, 4]), free_vars=['x'])", (
+        "The __repr__ method should return this exact value"
+    )
     assert hasattr(obj, "value"), "An LTNObject should have a value attribute"
     assert hasattr(obj, "free_vars"), "An LTNObject should have a free_vars attribute"
     assert torch.equal(obj.value, good_value), "The value should be as same as the parameter"
@@ -54,24 +66,29 @@ def test_Constant():
 
     # test with trainable False
     const = Constant(good_value)
-    assert const.__repr__() == "Constant(value=tensor([1, 2, 3, 4]), free_vars=[])", "The __repr__ method " \
-                                                                                     "should return this exact value"
+    assert const.__repr__() == "Constant(value=tensor([1, 2, 3, 4]), free_vars=[])", (
+        "The __repr__ method should return this exact value"
+    )
     assert hasattr(const, "value"), "Constant should have a value attribute"
     assert hasattr(const, "free_vars"), "Constant should have a free_vars attribute"
     assert const.free_vars == [], "The free_vars should be an empty list"
     assert torch.equal(const.value, good_value), "The value should be as same as the parameter"
     assert const.shape() == good_value.shape, "The shape should be as same as the shape of the tensor given in input"
-    assert const.value.requires_grad is False, "Since trainable parameter has default value to False, required_grad " \
-                                               "should be False"
-    assert const.value.device == ltn.device, "The device where the constant is should be as same as the device " \
-                                             "detected by LTN"
+    assert const.value.requires_grad is False, (
+        "Since trainable parameter has default value to False, required_grad should be False"
+    )
+    assert const.value.device == ltn.device, (
+        "The device where the constant is should be as same as the device detected by LTN"
+    )
 
     # test with trainable True
     const = Constant(good_value, trainable=True)
-    assert const.__repr__() == "Constant(value=tensor([1., 2., 3., 4.], requires_grad=True), free_vars=[])", "The " \
-                               "__repr__ method should return this exact value"
-    assert isinstance(const.value, torch.FloatTensor), "If trainable is set to True, the system should convert the " \
-                                                       "tensor (value of the constant) to float"
+    assert const.__repr__() == "Constant(value=tensor([1., 2., 3., 4.], requires_grad=True), free_vars=[])", (
+        "The __repr__ method should return this exact value"
+    )
+    assert isinstance(const.value, torch.FloatTensor), (
+        "If trainable is set to True, the system should convert the tensor (value of the constant) to float"
+    )
     assert const.value.requires_grad is True, "Since trainable has been set to True, required_grad should be True"
 
 
@@ -95,36 +112,44 @@ def test_Variable():
 
     # test with add_batch_dim to True
     var = Variable(good_label, good_value_one_dim)
-    assert str(Variable('x', torch.tensor([1, 2]), add_batch_dim=False)) == "Variable(value=tensor([1, 2]), " \
-                                                                            "free_vars=['x'])", "The __repr__ method " \
-                                                                                       "should return this exact value"
+    assert (
+        str(Variable("x", torch.tensor([1, 2]), add_batch_dim=False)) == "Variable(value=tensor([1, 2]), "
+        "free_vars=['x'])"
+    ), "The __repr__ method should return this exact value"
     assert hasattr(var, "value"), "The variable should have a value attribute"
     assert hasattr(var, "free_vars"), "The variable should have a free_vars attribute"
     assert hasattr(var, "latent_var"), "The variable should have a latent_var attribute"
-    assert torch.equal(var.value, torch.unsqueeze(good_value_one_dim.float(), 1)), "The value should be as same " \
-                                                                                   "as the parameter, but" \
-                                                                                   " with an added dimension, " \
-                                                                                   "since add_batch_dim is True."
-    assert var.free_vars == [good_label], "free_vars should be a list which contains the var labels given to" \
-                                          "the Variable."
+    assert torch.equal(var.value, torch.unsqueeze(good_value_one_dim.float(), 1)), (
+        "The value should be as same as the parameter, but with an added dimension, since add_batch_dim is True."
+    )
+    assert var.free_vars == [good_label], (
+        "free_vars should be a list which contains the var labels given tothe Variable."
+    )
     assert var.latent_var == good_label, "latent_var should be equal to the given var label."
 
-    assert isinstance(var.value, torch.FloatTensor), "Since the value passed to the Variable is double, LTN should " \
-                                                     "convert it to float to avoid type incompatibilities."
-    assert var.shape() == torch.Size([4, 1]), "add_batch_dim is set to True and the shape of the Variable is [1]." \
-                                              "The shape should become [4, 1] since the Variable contains 4 " \
-                                              "individuals and we have decided to add the batch dimension."
+    assert isinstance(var.value, torch.FloatTensor), (
+        "Since the value passed to the Variable is double, LTN should "
+        "convert it to float to avoid type incompatibilities."
+    )
+    assert var.shape() == torch.Size([4, 1]), (
+        "add_batch_dim is set to True and the shape of the Variable is [1]."
+        "The shape should become [4, 1] since the Variable contains 4 "
+        "individuals and we have decided to add the batch dimension."
+    )
     assert var.value.device == ltn.device, "The Variable should be in the same device as the device detected by LTN."
 
     # test with add_batch_dim to True but shape different from 1 -> the batch dim should not be added
     var = Variable(good_label, good_value_more_dims)
-    assert var.shape() == good_value_more_dims.shape, "No dimension should be added, so the shape should remain " \
-                                                      "the same. This because the passed value has already a batch dim."
+    assert var.shape() == good_value_more_dims.shape, (
+        "No dimension should be added, so the shape should remain "
+        "the same. This because the passed value has already a batch dim."
+    )
 
     # test with add_batch_dim to False
     var = Variable(good_label, good_value_one_dim, add_batch_dim=False)
-    assert var.shape() == good_value_one_dim.shape, "No dimension should be added, so the shape should remain " \
-                                                    "the same. This because add_batch_dim is set to False."
+    assert var.shape() == good_value_one_dim.shape, (
+        "No dimension should be added, so the shape should remain the same. This because add_batch_dim is set to False."
+    )
 
 
 def test_process_ltn_objects():
@@ -143,16 +168,15 @@ def test_process_ltn_objects():
     assert vars == [], "There should not be variables since the function has been called with two constants."
     assert n_individuals_per_var == [], "Since there are not variables, n_individuals_per_var should be an empty list."
     assert torch.equal(proc_objs[0].value, torch.tensor([[1, 2, 3, 4]])), "The constant should remain untouched."
-    assert torch.equal(proc_objs[1].value.squeeze_(), torch.tensor([[2, 4, 3, 2], [4, 3, 2, 8]])), "The constant " \
-                                                                                                   "should remain " \
-                                                                                                   "untouched."
+    assert torch.equal(proc_objs[1].value.squeeze_(), torch.tensor([[2, 4, 3, 2], [4, 3, 2, 8]])), (
+        "The constant should remain untouched."
+    )
     assert proc_objs[0] is not c1, "A deep copy should have been performed since c1 has not grad_fn."
     assert proc_objs[1] is not c2, "A deep copy should have been performed since c2 has not grad_fn."
 
-    assert proc_objs[0].free_vars == proc_objs[1].free_vars == [], "The two LTN objects should now share " \
-                                                                      "the same variables. In this case no variables " \
-                                                                   "since they are constants."
-
+    assert proc_objs[0].free_vars == proc_objs[1].free_vars == [], (
+        "The two LTN objects should now share the same variables. In this case no variables since they are constants."
+    )
 
     # test of Variable and Constant
     v1 = Variable("x", torch.tensor([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]]))  # variable with two individuals
@@ -160,21 +184,21 @@ def test_process_ltn_objects():
     # test with constant which is not trainable -> deep copy should be performed by the function
     proc_objs, vars, n_individuals_per_var = process_ltn_objects([c1, v1])
     assert vars == ["x"], "The only variable passed to the function is v1, so there should be only its label in vars."
-    assert n_individuals_per_var == [2], "Since v1 is the only variable and has only 2 individuals, " \
-                                         "n_individuals_per_var should be the list [2]."
-    assert torch.equal(proc_objs[0].value, torch.tensor([[1, 2, 3, 4], [1, 2, 3, 4]])), "Since variable v1 has 2 " \
-                                                                                        "individuals, the function " \
-                                                                                        "should have expanded the " \
-                                                                                        "constant to match the variable"
-    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])), "The variable " \
-                                                                                                       "should have " \
-                                                                                                       "been left " \
-                                                                                                       "untouched"
+    assert n_individuals_per_var == [2], (
+        "Since v1 is the only variable and has only 2 individuals, n_individuals_per_var should be the list [2]."
+    )
+    assert torch.equal(proc_objs[0].value, torch.tensor([[1, 2, 3, 4], [1, 2, 3, 4]])), (
+        "Since variable v1 has 2 individuals, the function should have expanded the constant to match the variable"
+    )
+    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])), (
+        "The variable should have been left untouched"
+    )
     assert proc_objs[0] is not c1, "A deep copy should have been performed since c1 has not grad_fn."
     assert proc_objs[1] is not v1, "A deep copy should have been performed since v1 has not grad_fn."
 
-    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ['x'], "The two LTN objects should now share " \
-                                                                      "the same variable."
+    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ["x"], (
+        "The two LTN objects should now share the same variable."
+    )
 
     # same test but with a constant that is now trainable -> deep copy should be performed by the function
     c1_t = Constant(torch.tensor([1, 2, 3, 4]), trainable=True)
@@ -186,7 +210,7 @@ def test_process_ltn_objects():
     assert proc_objs[1] is not v1, "A deep copy should be performed since v1 has not grad_fn."
 
     # same test but with a variable that has a torch operation on it, so it has grad_fn
-    v1_ = Variable("x", torch.tensor([[1., 2., 3., 4., 5., 6.], [7., 8., 9., 10., 11., 12.]]))
+    v1_ = Variable("x", torch.tensor([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]]))
     c1_t = Constant(torch.tensor([1, 2, 3, 4]), trainable=True)
     # put a gradient into c1_t to test a functionality
     c1_t.value = torch.unsqueeze(c1_t.value, 1)
@@ -208,46 +232,49 @@ def test_process_ltn_objects():
     assert vars == ["x", "y"], "vars should contain the list ['x', 'y'] since v1 has label x and v2 label y."
     assert n_individuals_per_var == [2, 2], "n_individuals_per_var should be [2, 2] since both vars have 2 individuals."
 
-    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ["x", "y"], "The two LTN object should now share " \
-                                                                           "the variables."
+    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ["x", "y"], (
+        "The two LTN object should now share the variables."
+    )
 
-    assert torch.equal(proc_objs[0].value,
-                       torch.tensor([[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6],
-                                     [7, 8, 9, 10, 11, 12], [7, 8, 9, 10, 11, 12]])), "Both individuals of v1 should " \
-                                                                                      "have been repeated twice " \
-                                                                                      "and in the order specified in " \
-                                                                                      "the assert."
+    assert torch.equal(
+        proc_objs[0].value,
+        torch.tensor([[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], [7, 8, 9, 10, 11, 12]]),
+    ), "Both individuals of v1 should have been repeated twice and in the order specified in the assert."
 
-    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2], [3, 4],
-                                                         [1, 2], [3, 4]])), "Both individuals of v2 should " \
-                                                                                      "have been repeated twice " \
-                                                                                      "and in the order specified in " \
-                                                                                      "the assert."
+    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2], [3, 4], [1, 2], [3, 4]])), (
+        "Both individuals of v2 should have been repeated twice and in the order specified in the assert."
+    )
 
     # different number of individuals in the two variables
     v3 = Variable("z", torch.tensor([[1, 2], [3, 4], [5, 6]]))
     proc_objs, vars, n_individuals_per_var = process_ltn_objects([v1, v3])
 
     assert vars == ["x", "z"], "vars should contain the list ['x', 'z'] since v1 has label x and v3 label z."
-    assert n_individuals_per_var == [2, 3], "n_individuals_per_var should be [2, 3] since v1 has 2 " \
-                                            "individuals and v2 3 individuals."
+    assert n_individuals_per_var == [2, 3], (
+        "n_individuals_per_var should be [2, 3] since v1 has 2 individuals and v2 3 individuals."
+    )
 
-    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ["x", "z"], "The two LTN object should now share " \
-                                                                           "the variables."
+    assert proc_objs[0].free_vars == proc_objs[1].free_vars == ["x", "z"], (
+        "The two LTN object should now share the variables."
+    )
 
-    assert torch.equal(proc_objs[0].value,
-                       torch.tensor([[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6],
-                                     [7, 8, 9, 10, 11, 12], [7, 8, 9, 10, 11, 12], [7, 8, 9, 10, 11, 12]])), "Both " \
-                                                                                     "individuals of v1 should " \
-                                                                                      "have been repeated three times " \
-                                                                                      "and in the order specified in " \
-                                                                                      "the assert."
+    assert torch.equal(
+        proc_objs[0].value,
+        torch.tensor(
+            [
+                [1, 2, 3, 4, 5, 6],
+                [1, 2, 3, 4, 5, 6],
+                [1, 2, 3, 4, 5, 6],
+                [7, 8, 9, 10, 11, 12],
+                [7, 8, 9, 10, 11, 12],
+                [7, 8, 9, 10, 11, 12],
+            ]
+        ),
+    ), "Both individuals of v1 should have been repeated three times and in the order specified in the assert."
 
-    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2], [3, 4], [5, 6],
-                                                         [1, 2], [3, 4], [5, 6]])), "The individuals of v3 should " \
-                                                                            "have been repeated twice " \
-                                                                            "and in the order specified in " \
-                                                                            "the assert."
+    assert torch.equal(proc_objs[1].value, torch.tensor([[1, 2], [3, 4], [5, 6], [1, 2], [3, 4], [5, 6]])), (
+        "The individuals of v3 should have been repeated twice and in the order specified in the assert."
+    )
 
     # test with diagonal quantification
     v1 = Variable("x", torch.randn((3, 4)))
@@ -258,13 +285,17 @@ def test_process_ltn_objects():
 
     assert torch.equal(proc_objs[0].value, v1.value), "The value should be the same since we are in diagonal setting."
     assert torch.equal(proc_objs[1].value, v2.value), "The value should be the same since we are in diagonal setting."
-    assert vars == ["diag_x_y"] == v1.free_vars == v2.free_vars, "The free vars of both variables and the vars " \
-                                                                 "variable should be the same."
-    assert n_individuals_per_var == [3], "Since we are diagonal setting, it is like we have only one variable with 3" \
-                                         "individuals."
+    assert vars == ["diag_x_y"] == v1.free_vars == v2.free_vars, (
+        "The free vars of both variables and the vars variable should be the same."
+    )
+    assert n_individuals_per_var == [3], (
+        "Since we are diagonal setting, it is like we have only one variable with 3individuals."
+    )
+
 
 def test_Predicate():
     torch.manual_seed(2020)
+
     # create simple models
     class PredicateModel(torch.nn.Module):
         def __init__(self):
@@ -324,10 +355,13 @@ def test_Predicate():
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate is unary" \
-                                           "and it is applied to a variable with 4 individuals."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate is unary"
+        "and it is applied to a variable with 4 individuals."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # lambda func
@@ -343,10 +377,13 @@ def test_Predicate():
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate is unary" \
-                                           "and it is applied to a variable with 4 individuals."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate is unary"
+        "and it is applied to a variable with 4 individuals."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # normal func
@@ -362,10 +399,13 @@ def test_Predicate():
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate is unary" \
-                                           "and it is applied to a variable with 4 individuals."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate is unary"
+        "and it is applied to a variable with 4 individuals."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # application of predicate to a constant
@@ -389,10 +429,12 @@ def test_Predicate():
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([]), "Since the input is a constant, the output of the predicate should be " \
-                                           "a scalar."
-    assert out.free_vars == [], "The predicate has been applied to a constant, which has not free variables, so " \
-                                "free_vars should be empty."
+    assert out.shape() == torch.Size([]), (
+        "Since the input is a constant, the output of the predicate should be a scalar."
+    )
+    assert out.free_vars == [], (
+        "The predicate has been applied to a constant, which has not free variables, so free_vars should be empty."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # binary predicate
@@ -425,17 +467,21 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, v2])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      proc_objs[1].value], dim=1), dim=1)).view(v1.value.shape[0],
-                                                                                                v2.value.shape[0])
+    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1), dim=1)).view(
+        v1.value.shape[0], v2.value.shape[0]
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the predicate " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "one with 5 individuals."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # variable with constant
@@ -464,17 +510,20 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, c])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      torch.flatten(proc_objs[1].value, start_dim=1)],
-                                                     dim=1), dim=1))
+    toy_out = torch.nn.Sigmoid()(
+        torch.sum(torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1), dim=1)
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "a constant."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                        "which is only 'x'."
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # lambda func
@@ -497,17 +546,21 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, v2])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      proc_objs[1].value], dim=1), dim=1)).view(v1.value.shape[0],
-                                                                                                v2.value.shape[0])
+    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1), dim=1)).view(
+        v1.value.shape[0], v2.value.shape[0]
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the predicate " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "one with 5 individuals."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # variable with constant
@@ -527,17 +580,20 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, c])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      torch.flatten(proc_objs[1].value, start_dim=1)],
-                                                     dim=1), dim=1))
+    toy_out = torch.nn.Sigmoid()(
+        torch.sum(torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1), dim=1)
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate " \
-                                           "is binary and it is applied to a variable with 4 individuals and " \
-                                           "a constant."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                   "which is only 'x'."
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # normal func
@@ -561,17 +617,21 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, v2])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      proc_objs[1].value], dim=1), dim=1)).view(v1.value.shape[0],
-                                                                                                v2.value.shape[0])
+    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1), dim=1)).view(
+        v1.value.shape[0], v2.value.shape[0]
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the predicate " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "one with 5 individuals."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
     # variable with constant
@@ -593,17 +653,20 @@ def test_Predicate():
 
     proc_objs, _, _ = process_ltn_objects([v1, c])
 
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_objs[0].value,
-                                                      torch.flatten(proc_objs[1].value, start_dim=1)],
-                                                     dim=1), dim=1))
+    toy_out = torch.nn.Sigmoid()(
+        torch.sum(torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1), dim=1)
+    )
 
     assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the predicate " \
-                                           "is binary and it is applied to a variable with 4 individuals and " \
-                                           "a constant."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                   "which is only 'x'."
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the predicate "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN predicate should always be an LTN object."
 
 
@@ -665,14 +728,16 @@ def test_Function():
 
     toy_out = torch.cat([v.value, torch.ones((v.shape()[0], 2))], dim=1)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the function " \
-                                           "has been applied to a variable with 4 individuals with 3 features, and" \
-                                              "2 features have been added to each of them."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the function "
+        "has been applied to a variable with 4 individuals with 3 features, and"
+        "2 features have been added to each of them."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # lambda func
@@ -686,14 +751,16 @@ def test_Function():
 
     out = f1(v)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the function " \
-                                              "has been applied to a variable with 4 individuals with 3 features, and" \
-                                              "2 features have been added to each of them."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the function "
+        "has been applied to a variable with 4 individuals with 3 features, and"
+        "2 features have been added to each of them."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # normal func
@@ -707,14 +774,16 @@ def test_Function():
 
     out = f1(v)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5]), "The output should be a matrix of 4x5 values since the function " \
-                                              "has been applied to a variable with 4 individuals with 3 features, and" \
-                                              "2 features have been added to each of them."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4, 5]), (
+        "The output should be a matrix of 4x5 values since the function "
+        "has been applied to a variable with 4 individuals with 3 features, and"
+        "2 features have been added to each of them."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # different function with only one scalar for each individual in input
@@ -731,14 +800,16 @@ def test_Function():
 
     toy_out = torch.mean(v.value, dim=1)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4]), "The output should be a vector of 4 values since the function " \
-                                              "has been applied to a variable with 4 individuals and needs to perform" \
-                                              "the mean of their features."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v, which " \
-                                   "is only 'x'"
+    assert out.shape() == torch.Size([4]), (
+        "The output should be a vector of 4 values since the function "
+        "has been applied to a variable with 4 individuals and needs to perform"
+        "the mean of their features."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v, which is only 'x'"
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # application of predicate to a constant
@@ -760,13 +831,14 @@ def test_Function():
 
     toy_out = torch.mean(c.value)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([]), "Since the input is a constant, the output of the predicate should be " \
-                                          "a scalar."
-    assert out.free_vars == [], "The predicate has been applied to a constant, which has not free variables, so " \
-                                "free_vars should be empty."
+    assert out.shape() == torch.Size([]), (
+        "Since the input is a constant, the output of the predicate should be a scalar."
+    )
+    assert out.free_vars == [], (
+        "The predicate has been applied to a constant, which has not free variables, so free_vars should be empty."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # binary function
@@ -802,15 +874,18 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1).view(v1.value.shape[0], v2.value.shape[0], 10)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5, 10]), "The output should be a tensor of 4x5x10 values since the function " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "one with 5 individuals. Finally, it concatenates their features, " \
-                                                  "which are 3 and 7, so the final dimension should be 10."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5, 10]), (
+        "The output should be a tensor of 4x5x10 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals. Finally, it concatenates their features, "
+        "which are 3 and 7, so the final dimension should be 10."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # variable with constant
@@ -841,15 +916,17 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 38]), "The output should a matrix of 4x38 values since the function " \
-                                           "is binary and it is applied to a variable with 4 individuals and " \
-                                           "a constant. The variable has 3 features for each individual, and the" \
-                                               "flatten shape of the constant is 35. 35 + 3 = 38."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                   "which is only 'x'."
+    assert out.shape() == torch.Size([4, 38]), (
+        "The output should a matrix of 4x38 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant. The variable has 3 features for each individual, and the"
+        "flatten shape of the constant is 35. 35 + 3 = 38."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # lambda func
@@ -874,14 +951,17 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1).view(4, 5, 10)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5, 10]), "The output should be a tensor of 4x5x10 values since the function " \
-                                              "is binary and it is applied to a variable with 4 individuals and " \
-                                              "one with 5 individuals. It concatenates the features that are 3 + 7."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5, 10]), (
+        "The output should be a tensor of 4x5x10 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals. It concatenates the features that are 3 + 7."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # variable with constant
@@ -903,14 +983,16 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 38]), "The output should be a matrix of 4x38 values since the function " \
-                                           "is binary and it is applied to a variable with 4 individuals and " \
-                                           "a constant that has 35 flatten features. 35 + 3 (features of v1) = 38."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                   "which is only 'x'."
+    assert out.shape() == torch.Size([4, 38]), (
+        "The output should be a matrix of 4x38 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant that has 35 flatten features. 35 + 3 (features of v1) = 38."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # normal func
@@ -936,14 +1018,17 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, proc_objs[1].value], dim=1).view(4, 5, 10)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 5, 10]), "The output should be a tensor of 4x5x10 values since the function " \
-                                                  "is binary and it is applied to a variable with 4 individuals and " \
-                                                  "one with 5 individuals. It concatenates the features that are 3 + 7."
-    assert out.free_vars == ["x", "y"], "The free_vars in the output should be the free_vars contained in v1 and " \
-                                        "v2, which are 'x' for v1 and 'y' for v2."
+    assert out.shape() == torch.Size([4, 5, 10]), (
+        "The output should be a tensor of 4x5x10 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "one with 5 individuals. It concatenates the features that are 3 + 7."
+    )
+    assert out.free_vars == ["x", "y"], (
+        "The free_vars in the output should be the free_vars contained in v1 and "
+        "v2, which are 'x' for v1 and 'y' for v2."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
     # variable with constant
@@ -967,14 +1052,16 @@ def test_Function():
 
     toy_out = torch.cat([proc_objs[0].value, torch.flatten(proc_objs[1].value, start_dim=1)], dim=1)
 
-    assert torch.equal(out.value.detach(),
-                       toy_out), "Since seed has been set, the result should be always this one."
+    assert torch.equal(out.value.detach(), toy_out), "Since seed has been set, the result should be always this one."
 
-    assert out.shape() == torch.Size([4, 38]), "The output should be a matrix of 4x38 values since the function " \
-                                               "is binary and it is applied to a variable with 4 individuals and " \
-                                               "a constant that has 35 flatten features. 35 + 3 (features of v1) = 38."
-    assert out.free_vars == ["x"], "The free_vars in the output should be the free_vars contained in v1, " \
-                                   "which is only 'x'."
+    assert out.shape() == torch.Size([4, 38]), (
+        "The output should be a matrix of 4x38 values since the function "
+        "is binary and it is applied to a variable with 4 individuals and "
+        "a constant that has 35 flatten features. 35 + 3 (features of v1) = 38."
+    )
+    assert out.free_vars == ["x"], (
+        "The free_vars in the output should be the free_vars contained in v1, which is only 'x'."
+    )
     assert isinstance(out, LTNObject), "The output of an LTN function should always be an LTN object."
 
 
@@ -988,11 +1075,11 @@ def test_LambdaModel():
 def test_diag():
     torch.manual_seed(2020)
     # check if exceptions are raised
-    v1 = Variable('v1', torch.tensor([[1., 2.], [3., 4.]]))  # 2 individuals
-    v2 = Variable('v2', torch.tensor([[5., 6.], [7., 8.]]))  # 2 individuals
-    v3 = Variable('v3', torch.tensor([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]]))  # 3 individuals
-    v4 = Variable('v4', torch.tensor([[5., 6., 7.], [7., 8., 9.]]))  # 2 individuals but three features
-    c = Constant(torch.tensor([1., 2., 3., 4.]))  # LTN constant
+    v1 = Variable("v1", torch.tensor([[1.0, 2.0], [3.0, 4.0]]))  # 2 individuals
+    v2 = Variable("v2", torch.tensor([[5.0, 6.0], [7.0, 8.0]]))  # 2 individuals
+    v3 = Variable("v3", torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]))  # 3 individuals
+    v4 = Variable("v4", torch.tensor([[5.0, 6.0, 7.0], [7.0, 8.0, 9.0]]))  # 2 individuals but three features
+    c = Constant(torch.tensor([1.0, 2.0, 3.0, 4.0]))  # LTN constant
 
     # diagonal quantification only accepts variables
     with pytest.raises(TypeError):
@@ -1018,12 +1105,12 @@ def test_diag():
     toy_out = torch.sum(torch.cat([v1.value, v2.value, v4.value], dim=1), dim=1)
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
-    assert out.free_vars == ["diag_v1_v2_v4"] == v1.free_vars == v2.free_vars == v4.free_vars, "Since we are in " \
-                                                                                               "diagonal setting, the " \
-                                                                                               "only free var is " \
-                                                                                               "this one."
-    assert out.shape() == torch.Size([2]), "Since there are only 2 individuals per variable and we are in diagonal" \
-                                           "setting, the size should be 2."
+    assert out.free_vars == ["diag_v1_v2_v4"] == v1.free_vars == v2.free_vars == v4.free_vars, (
+        "Since we are in diagonal setting, the only free var is this one."
+    )
+    assert out.shape() == torch.Size([2]), (
+        "Since there are only 2 individuals per variable and we are in diagonalsetting, the size should be 2."
+    )
 
     # now undiag and check again
 
@@ -1031,13 +1118,15 @@ def test_diag():
 
     out = function(v1, v2, v4)
     proc_obs, _, _ = process_ltn_objects([v1, v2, v4])
-    toy_out = torch.sum(torch.cat([proc_obs[0].value, proc_obs[1].value, proc_obs[2].value], dim=1), dim=1)\
-        .view(2, 2, 2)
+    toy_out = torch.sum(torch.cat([proc_obs[0].value, proc_obs[1].value, proc_obs[2].value], dim=1), dim=1).view(
+        2, 2, 2
+    )
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert out.free_vars == ["v1", "v2", "v4"], "Since we are not in diagonal setting, all the variables are free."
-    assert out.shape() == torch.Size([2, 2, 2]), "Since there are only 2 individuals per variable and we are not in " \
-                                                 "diagonal setting, the shape must be 2x2x2."
+    assert out.shape() == torch.Size([2, 2, 2]), (
+        "Since there are only 2 individuals per variable and we are not in diagonal setting, the shape must be 2x2x2."
+    )
 
     # test diagonal quantification on predicate
 
@@ -1053,12 +1142,12 @@ def test_diag():
     toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([v1.value, v2.value, v3.value], dim=1), dim=1))
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
-    assert out.free_vars == ["diag_x_y_z"] == v1.free_vars == v2.free_vars == v3.free_vars, "Since we are in " \
-                                                                                               "diagonal setting, the " \
-                                                                                               "only free var is " \
-                                                                                               "this one."
-    assert out.shape() == torch.Size([3]), "Since there are only 3 individuals per variable and we are in diagonal" \
-                                           "setting, the size should be 3."
+    assert out.free_vars == ["diag_x_y_z"] == v1.free_vars == v2.free_vars == v3.free_vars, (
+        "Since we are in diagonal setting, the only free var is this one."
+    )
+    assert out.shape() == torch.Size([3]), (
+        "Since there are only 3 individuals per variable and we are in diagonalsetting, the size should be 3."
+    )
 
     # now undiag and check again
 
@@ -1066,20 +1155,22 @@ def test_diag():
 
     out = predicate(v1, v2, v3)
     proc_obs, _, _ = process_ltn_objects([v1, v2, v3])
-    toy_out = torch.nn.Sigmoid()(torch.sum(torch.cat([proc_obs[0].value, proc_obs[1].value, proc_obs[2].value], dim=1),
-                                           dim=1).view(3, 3, 3))
+    toy_out = torch.nn.Sigmoid()(
+        torch.sum(torch.cat([proc_obs[0].value, proc_obs[1].value, proc_obs[2].value], dim=1), dim=1).view(3, 3, 3)
+    )
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert out.free_vars == ["x", "y", "z"], "Since we are not in diagonal setting, all the variables are free."
-    assert out.shape() == torch.Size([3, 3, 3]), "Since there are only 3 individuals per variable and we are not in " \
-                                                 "diagonal setting, the shape must be 3x3x3."
+    assert out.shape() == torch.Size([3, 3, 3]), (
+        "Since there are only 3 individuals per variable and we are not in diagonal setting, the shape must be 3x3x3."
+    )
 
 
 def test_undiag():
     # check if exceptions are raised
-    v1 = Variable('v1', torch.tensor([[1, 2], [3, 4]]))  # 2 individuals
-    v2 = Variable('v2', torch.tensor([[5, 6], [7, 8]]))  # 2 individuals
-    v4 = Variable('v4', torch.tensor([[5, 6, 7], [7, 8, 9]]))  # 2 individuals but three features
+    v1 = Variable("v1", torch.tensor([[1, 2], [3, 4]]))  # 2 individuals
+    v2 = Variable("v2", torch.tensor([[5, 6], [7, 8]]))  # 2 individuals
+    v4 = Variable("v4", torch.tensor([[5, 6, 7], [7, 8, 9]]))  # 2 individuals but three features
     c = Constant(torch.tensor([1, 2, 3, 5]))
 
     # undiagonal quantification only accepts LTN variables
@@ -1089,19 +1180,16 @@ def test_undiag():
     # undiag of a single variable without diag
     v1 = undiag(v1)[0]
 
-    assert v1.free_vars == ['v1'], "free vars should be kept untouched and should be " \
-                                                    "equal to latent_var, which is v1."
+    assert v1.free_vars == ["v1"], "free vars should be kept untouched and should be equal to latent_var, which is v1."
 
     v1, v2, v4 = diag(v1, v2, v4)
     assert v1.free_vars == v2.free_vars == v4.free_vars == ["diag_v1_v2_v4"]
     v1, v2, v4 = undiag(v1, v2, v4)
 
-    assert v1.free_vars == ['v1'], "free vars should be kept untouched and should be " \
-                                                    "equal to latent_var, which is v1"
-    assert v2.free_vars == ['v2'], "free vars should be kept untouched and should be " \
-                                                    "equal to latent_var, which is v2"
-    assert v4.free_vars == ['v4'], "free vars should be kept untouched and should be " \
-                                                    "equal to latent_var, which is v4"
+    assert v1.free_vars == ["v1"], "free vars should be kept untouched and should be equal to latent_var, which is v1"
+    assert v2.free_vars == ["v2"], "free vars should be kept untouched and should be equal to latent_var, which is v2"
+    assert v4.free_vars == ["v4"], "free vars should be kept untouched and should be equal to latent_var, which is v4"
+
 
 def test_Connective():
     torch.manual_seed(2020)
@@ -1110,6 +1198,7 @@ def test_Connective():
 
     # ConnectiveOperator
     with pytest.raises(NotImplementedError):
+
         class StrangeConn(ltn.fuzzy_ops.ConnectiveOperator):
             def __init__(self):
                 pass
@@ -1119,6 +1208,7 @@ def test_Connective():
 
     # unary
     with pytest.raises(NotImplementedError):
+
         class StrangeConn(ltn.fuzzy_ops.UnaryConnectiveOperator):
             def __init__(self):
                 pass
@@ -1128,6 +1218,7 @@ def test_Connective():
 
     # binary
     with pytest.raises(NotImplementedError):
+
         class StrangeConn(ltn.fuzzy_ops.BinaryConnectiveOperator):
             def __init__(self):
                 pass
@@ -1178,7 +1269,6 @@ def test_Connective():
     with pytest.raises(ValueError):
         and_min(op1, LTNObject(torch.randn((3, 3)), ["x"]))
 
-
     proc_objs, _, _ = process_ltn_objects([op1, op2])
 
     # torch minimum is how the AndMin connective is implemented internally
@@ -1186,71 +1276,85 @@ def test_Connective():
 
     out = and_min(op1, op2)
 
-    assert torch.equal(torch.flatten(out.value), toy_out), "The output should be the same if the operator has done" \
-                                                           " the things correctly."
+    assert torch.equal(torch.flatten(out.value), toy_out), (
+        "The output should be the same if the operator has done the things correctly."
+    )
 
-    assert out.free_vars == ["x", "y", "u", "z"], "The free variables in the output should be x, y, u and z, since " \
-                                                  "op1 has variables x and y, while op2 variables u and z."
+    assert out.free_vars == ["x", "y", "u", "z"], (
+        "The free variables in the output should be x, y, u and z, since "
+        "op1 has variables x and y, while op2 variables u and z."
+    )
 
-    assert out.shape() == torch.Size([3, 4, 5, 6]), "The output should be a tensor with " \
-                                                    "dimensions associated to the free variables involved " \
-                                                    "in the connective operation."
+    assert out.shape() == torch.Size([3, 4, 5, 6]), (
+        "The output should be a tensor with "
+        "dimensions associated to the free variables involved "
+        "in the connective operation."
+    )
 
     # definition of all other connectives and simple test of them
     not_standard = Connective(ltn.fuzzy_ops.NotStandard())
-    assert str(not_standard) == "Connective(connective_op=NotStandard())", "The __repr__ method " \
-                                                                           "should return this exact value"
+    assert str(not_standard) == "Connective(connective_op=NotStandard())", (
+        "The __repr__ method should return this exact value"
+    )
     not_godel = Connective(ltn.fuzzy_ops.NotGodel())
-    assert str(not_godel) == "Connective(connective_op=NotGodel())", "The __repr__ method " \
-                                                                     "should return this exact value"
+    assert str(not_godel) == "Connective(connective_op=NotGodel())", (
+        "The __repr__ method should return this exact value"
+    )
     and_min = Connective(ltn.fuzzy_ops.AndMin())
-    assert str(and_min) == "Connective(connective_op=AndMin())", "The __repr__ method " \
-                                                                 "should return this exact value"
+    assert str(and_min) == "Connective(connective_op=AndMin())", "The __repr__ method should return this exact value"
     and_prod = Connective(ltn.fuzzy_ops.AndProd())
-    assert str(and_prod) == "Connective(connective_op=AndProd(stable=True))", "The __repr__ method " \
-                                                                              "should return this exact value"
+    assert str(and_prod) == "Connective(connective_op=AndProd(stable=True))", (
+        "The __repr__ method should return this exact value"
+    )
     and_prod_not_stable = Connective(ltn.fuzzy_ops.AndProd(stable=False))
-    assert str(and_prod_not_stable) == "Connective(connective_op=AndProd(stable=False))", "The __repr__ method " \
-                                                                                          "should return this " \
-                                                                                          "exact value"
+    assert str(and_prod_not_stable) == "Connective(connective_op=AndProd(stable=False))", (
+        "The __repr__ method should return this exact value"
+    )
     and_luk = Connective(ltn.fuzzy_ops.AndLuk())
     assert str(and_luk) == "Connective(connective_op=AndLuk())", "The __repr__ method should return this exact value"
     or_max = Connective(ltn.fuzzy_ops.OrMax())
     assert str(or_max) == "Connective(connective_op=OrMax())", "The __repr__ method should return this exact value"
     or_prob = Connective(ltn.fuzzy_ops.OrProbSum())
-    assert str(or_prob) == "Connective(connective_op=OrProbSum(stable=True))", "The __repr__ method " \
-                                                                               "should return this exact value"
+    assert str(or_prob) == "Connective(connective_op=OrProbSum(stable=True))", (
+        "The __repr__ method should return this exact value"
+    )
     or_prob_not_stable = Connective(ltn.fuzzy_ops.OrProbSum(stable=False))
-    assert str(or_prob_not_stable) == "Connective(connective_op=OrProbSum(stable=False))", "The __repr__ method " \
-                                                                                           "should return this " \
-                                                                                           "exact value"
+    assert str(or_prob_not_stable) == "Connective(connective_op=OrProbSum(stable=False))", (
+        "The __repr__ method should return this exact value"
+    )
     or_luk = Connective(ltn.fuzzy_ops.OrLuk())
     assert str(or_luk) == "Connective(connective_op=OrLuk())", "The __repr__ method should return this exact value"
     i_kd = Connective(ltn.fuzzy_ops.ImpliesKleeneDienes())
-    assert str(i_kd) == "Connective(connective_op=ImpliesKleeneDienes())", "The __repr__ method " \
-                                                                           "should return this exact value"
+    assert str(i_kd) == "Connective(connective_op=ImpliesKleeneDienes())", (
+        "The __repr__ method should return this exact value"
+    )
     i_godel = Connective(ltn.fuzzy_ops.ImpliesGodel())
-    assert str(i_godel) == "Connective(connective_op=ImpliesGodel())", "The __repr__ method " \
-                                                                       "should return this exact value"
+    assert str(i_godel) == "Connective(connective_op=ImpliesGodel())", (
+        "The __repr__ method should return this exact value"
+    )
     i_r = Connective(ltn.fuzzy_ops.ImpliesReichenbach())
-    assert str(i_r) == "Connective(connective_op=ImpliesReichenbach(stable=True))", "The __repr__ method " \
-                                                                                    "should return this exact value"
+    assert str(i_r) == "Connective(connective_op=ImpliesReichenbach(stable=True))", (
+        "The __repr__ method should return this exact value"
+    )
     i_r_not_stable = Connective(ltn.fuzzy_ops.ImpliesReichenbach(stable=False))
-    assert str(i_r_not_stable) == "Connective(connective_op=ImpliesReichenbach(stable=False))", "The __repr__ method " \
-                                                                                                "should return " \
-                                                                                                "this exact value"
+    assert str(i_r_not_stable) == "Connective(connective_op=ImpliesReichenbach(stable=False))", (
+        "The __repr__ method should return this exact value"
+    )
     i_gougen = Connective(ltn.fuzzy_ops.ImpliesGoguen())
-    assert str(i_gougen) == "Connective(connective_op=ImpliesGoguen(stable=True))", "The __repr__ method " \
-                                                                                    "should return this exact value"
+    assert str(i_gougen) == "Connective(connective_op=ImpliesGoguen(stable=True))", (
+        "The __repr__ method should return this exact value"
+    )
     i_gougen_not_stable = Connective(ltn.fuzzy_ops.ImpliesGoguen(stable=False))
-    assert str(i_gougen_not_stable) == "Connective(connective_op=ImpliesGoguen(stable=False))", "The __repr__ method " \
-                                                                                                "should return " \
-                                                                                                "this exact value"
+    assert str(i_gougen_not_stable) == "Connective(connective_op=ImpliesGoguen(stable=False))", (
+        "The __repr__ method should return this exact value"
+    )
     i_luk = Connective(ltn.fuzzy_ops.ImpliesLuk())
     assert str(i_luk) == "Connective(connective_op=ImpliesLuk())", "The __repr__ method should return this exact value"
     equiv = Connective(ltn.fuzzy_ops.Equiv(ltn.fuzzy_ops.AndProd(), ltn.fuzzy_ops.ImpliesReichenbach()))
-    assert str(equiv) == "Connective(connective_op=Equiv(and_op=AndProd(stable=True), implies_op=" \
-                         "ImpliesReichenbach(stable=True)))", "The __repr__ method should return this exact value"
+    assert (
+        str(equiv) == "Connective(connective_op=Equiv(and_op=AndProd(stable=True), implies_op="
+        "ImpliesReichenbach(stable=True)))"
+    ), "The __repr__ method should return this exact value"
 
     # we test the connective with simple LTN objects based on the same variables, for simplicity
     # the case with different variables has already been tested above
@@ -1261,7 +1365,7 @@ def test_Connective():
 
     # not standard
 
-    toy_out = 1. - op1.value
+    toy_out = 1.0 - op1.value
     out = not_standard(op1)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1274,7 +1378,7 @@ def test_Connective():
 
     # not godel
 
-    toy_out = torch.eq(op1.value, 0.).float()
+    toy_out = torch.eq(op1.value, 0.0).float()
     out = not_godel(op1)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1322,7 +1426,7 @@ def test_Connective():
 
     # and lukasiewicz
 
-    toy_out = torch.maximum(op1.value + op2.value - 1., torch.zeros_like(op1.value))
+    toy_out = torch.maximum(op1.value + op2.value - 1.0, torch.zeros_like(op1.value))
     out = and_luk(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1361,8 +1465,11 @@ def test_Connective():
 
     # or prob sum - stable
 
-    toy_out = ltn.fuzzy_ops.pi_1(op1.value) + ltn.fuzzy_ops.pi_1(op2.value) - \
-              torch.mul(ltn.fuzzy_ops.pi_1(op1.value), ltn.fuzzy_ops.pi_1(op2.value))
+    toy_out = (
+        ltn.fuzzy_ops.pi_1(op1.value)
+        + ltn.fuzzy_ops.pi_1(op2.value)
+        - torch.mul(ltn.fuzzy_ops.pi_1(op1.value), ltn.fuzzy_ops.pi_1(op2.value))
+    )
     out = or_prob(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1384,7 +1491,7 @@ def test_Connective():
 
     # implies kleene dienes
 
-    toy_out = torch.maximum(1. - op1.value, op2.value)
+    toy_out = torch.maximum(1.0 - op1.value, op2.value)
     out = i_kd(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1410,7 +1517,7 @@ def test_Connective():
 
     # implies Reichenbach - not stable
 
-    toy_out = 1. - op1.value + torch.mul(op1.value, op2.value)
+    toy_out = 1.0 - op1.value + torch.mul(op1.value, op2.value)
     out = i_r_not_stable(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1423,8 +1530,9 @@ def test_Connective():
 
     # implies Reichenbach - stable
 
-    toy_out = 1. - ltn.fuzzy_ops.pi_0(op1.value) + torch.mul(ltn.fuzzy_ops.pi_0(op1.value),
-                                                             ltn.fuzzy_ops.pi_1(op2.value))
+    toy_out = (
+        1.0 - ltn.fuzzy_ops.pi_0(op1.value) + torch.mul(ltn.fuzzy_ops.pi_0(op1.value), ltn.fuzzy_ops.pi_1(op2.value))
+    )
     out = i_r(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1446,9 +1554,11 @@ def test_Connective():
 
     # implies goguen - stable
 
-    toy_out = torch.where(torch.le(ltn.fuzzy_ops.pi_0(op1.value), op2.value),
-                          torch.ones_like(ltn.fuzzy_ops.pi_0(op1.value)),
-                          torch.div(op2.value, ltn.fuzzy_ops.pi_0(op1.value)))
+    toy_out = torch.where(
+        torch.le(ltn.fuzzy_ops.pi_0(op1.value), op2.value),
+        torch.ones_like(ltn.fuzzy_ops.pi_0(op1.value)),
+        torch.div(op2.value, ltn.fuzzy_ops.pi_0(op1.value)),
+    )
     out = i_gougen(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1457,7 +1567,7 @@ def test_Connective():
 
     # implies lukasiewicz
 
-    toy_out = torch.minimum(1. - op1.value + op2.value, torch.ones_like(op1.value))
+    toy_out = torch.minimum(1.0 - op1.value + op2.value, torch.ones_like(op1.value))
     out = i_luk(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1484,10 +1594,18 @@ def test_Connective():
     # equiv
 
     # equiv has been initialized with and prod and implies goguen strong stable
-    toy_out = torch.mul(ltn.fuzzy_ops.pi_0(1. - ltn.fuzzy_ops.pi_0(op1.value) + torch.mul(ltn.fuzzy_ops.pi_0(op1.value),
-                                                                                          ltn.fuzzy_ops.pi_1(op2.value))),
-                        ltn.fuzzy_ops.pi_0(1. - ltn.fuzzy_ops.pi_0(op2.value) + torch.mul(ltn.fuzzy_ops.pi_0(op2.value),
-                                                                                          ltn.fuzzy_ops.pi_1(op1.value))))
+    toy_out = torch.mul(
+        ltn.fuzzy_ops.pi_0(
+            1.0
+            - ltn.fuzzy_ops.pi_0(op1.value)
+            + torch.mul(ltn.fuzzy_ops.pi_0(op1.value), ltn.fuzzy_ops.pi_1(op2.value))
+        ),
+        ltn.fuzzy_ops.pi_0(
+            1.0
+            - ltn.fuzzy_ops.pi_0(op2.value)
+            + torch.mul(ltn.fuzzy_ops.pi_0(op2.value), ltn.fuzzy_ops.pi_1(op1.value))
+        ),
+    )
     out = equiv(op1, op2)
 
     assert torch.equal(out.value, toy_out), "The output should be the same."
@@ -1518,6 +1636,7 @@ def test_Quantifier():
     # check implementation exceptions
 
     with pytest.raises(NotImplementedError):
+
         class StrangeAgg(ltn.fuzzy_ops.AggregationOperator):
             def __init__(self):
                 pass
@@ -1546,14 +1665,13 @@ def test_Quantifier():
     p = Predicate(func=lambda x, y: torch.nn.Sigmoid()(torch.sum(torch.cat([x, y], dim=1), dim=1)))
 
     exists = Quantifier(ltn.fuzzy_ops.AggregPMean(p=2), "e")
-    assert str(exists) == "Quantifier(agg_op=AggregPMean(p=2, stable=True), quantifier='e')", "The __repr__ method " \
-                                                                                              "should return this " \
-                                                                                              "exact value"
+    assert str(exists) == "Quantifier(agg_op=AggregPMean(p=2, stable=True), quantifier='e')", (
+        "The __repr__ method should return this exact value"
+    )
     forall = Quantifier(ltn.fuzzy_ops.AggregPMeanError(p=2), "f")
-    assert str(forall) == "Quantifier(agg_op=AggregPMeanError(p=2, stable=True), quantifier='f')", "The __repr__ " \
-                                                                                                   "method " \
-                                                                                                   "should return " \
-                                                                                                   "this exact value"
+    assert str(forall) == "Quantifier(agg_op=AggregPMeanError(p=2, stable=True), quantifier='f')", (
+        "The __repr__ method should return this exact value"
+    )
 
     # error if vars parameter do not contain only LTN variables, in this case it contains a variables plus constant
     with pytest.raises(TypeError):
@@ -1573,12 +1691,15 @@ def test_Quantifier():
 
     # if condition is set, condition variables have to be set
     with pytest.raises(ValueError):
-        forall([x, y], p(x, y), cond_fn=lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 5,
-                                                                       torch.sum(y.value, dim=1) < 5))
+        forall(
+            [x, y],
+            p(x, y),
+            cond_fn=lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 5, torch.sum(y.value, dim=1) < 5),
+        )
 
     # formula parameter must contains values in [0., 1.]
     with pytest.raises(ValueError):
-        forall([x, y], LTNObject(torch.tensor([[1., 2., 3.], [3., 4., 3.]]), ["x", "y"]))
+        forall([x, y], LTNObject(torch.tensor([[1.0, 2.0, 3.0], [3.0, 4.0, 3.0]]), ["x", "y"]))
 
     # check with a single variable quantified and without guarded quantification
 
@@ -1588,8 +1709,9 @@ def test_Quantifier():
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
     assert out.free_vars == ["y"], "Since the quantification is on x, the output will have only y in the free vars."
-    assert out.shape() == torch.Size([4]), "x has been quantified, so the output should have shape 4, namely the " \
-                                           "number of individuals in y."
+    assert out.shape() == torch.Size([4]), (
+        "x has been quantified, so the output should have shape 4, namely the number of individuals in y."
+    )
 
     # reverse quantified variable an check again
 
@@ -1599,8 +1721,9 @@ def test_Quantifier():
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
     assert out.free_vars == ["x"], "Since the quantification is on y, the output will have only x in the free vars."
-    assert out.shape() == torch.Size([2]), "y has been quantified, so the output should have shape 2, namely the " \
-                                           "number of individuals in x."
+    assert out.shape() == torch.Size([2]), (
+        "y has been quantified, so the output should have shape 2, namely the number of individuals in x."
+    )
 
     # quantification on both variables, with same quantifier
 
@@ -1626,69 +1749,72 @@ def test_Quantifier():
 
     # only first individual in x has a sum greater than 1 on its features
     # only first and last individuals in y have a sum greater than 0. on their features
-    out = forall(x, p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.)
+    out = forall(x, p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.0)
     mask = torch.tensor([[1, 1, 1, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(p(x, y).value, dim=0, mask=mask)
 
     assert torch.equal(out.value, toy_out.double()), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
     assert out.free_vars == ["y"], "Since the quantification is on x, the output should have only y in the free vars."
-    assert out.shape() == torch.Size([4]), "x has been quantified, so the output should have a shape of 4, since y" \
-                                           "has 4 individuals."
+    assert out.shape() == torch.Size([4]), (
+        "x has been quantified, so the output should have a shape of 4, since yhas 4 individuals."
+    )
 
     # guarded quantification on multiple variables
 
-    out = forall(x, p(x, y), [x, y], lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.,
-                                                                    torch.sum(y.value, dim=1) > 0.))
+    out = forall(
+        x,
+        p(x, y),
+        [x, y],
+        lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.0, torch.sum(y.value, dim=1) > 0.0),
+    )
     mask = torch.tensor([[1, 0, 0, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(p(x, y).value, dim=0, mask=mask)
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 1.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        1.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 1.0, toy_out.double())
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
     assert out.free_vars == ["y"], "Since the quantification is on x, the output should have only y in the free vars."
-    assert out.shape() == torch.Size([4]), "x has been quantified, so the output should have a shape of 4, since y" \
-                                           "has 4 individuals."
+    assert out.shape() == torch.Size([4]), (
+        "x has been quantified, so the output should have a shape of 4, since yhas 4 individuals."
+    )
 
     # guarded quantification on multiple variables - exists
 
-    out = exists(x, p(x, y), [x, y], lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.,
-                                                                    torch.sum(y.value, dim=1) > 0.))
+    out = exists(
+        x,
+        p(x, y),
+        [x, y],
+        lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.0, torch.sum(y.value, dim=1) > 0.0),
+    )
     mask = torch.tensor([[1, 0, 0, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMean(p=2)(p(x, y).value, dim=0, mask=mask)
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 0.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        0.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 0.0, toy_out.double())
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
     assert out.free_vars == ["y"], "Since the quantification is on x, the output should have only y in the free vars."
-    assert out.shape() == torch.Size([4]), "x has been quantified, so the output should have a shape of 4, since y" \
-                                           "has 4 individuals."
+    assert out.shape() == torch.Size([4]), (
+        "x has been quantified, so the output should have a shape of 4, since yhas 4 individuals."
+    )
 
     # guarded quantification on multiple variables and all variables quantified
 
-    out = forall([x, y], p(x, y), [x, y], lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.,
-                                                                    torch.sum(y.value, dim=1) > 0.))
+    out = forall(
+        [x, y],
+        p(x, y),
+        [x, y],
+        lambda x, y: torch.logical_and(torch.sum(x.value, dim=1) > 1.0, torch.sum(y.value, dim=1) > 0.0),
+    )
     mask = torch.tensor([[1, 0, 0, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(p(x, y).value, dim=(0, 1), mask=mask)
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 1.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        1.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 1.0, toy_out.double())
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
@@ -1697,7 +1823,7 @@ def test_Quantifier():
 
     # guarded quantification on a single variable but both quantified
 
-    out = forall([x, y], p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.)
+    out = forall([x, y], p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.0)
     mask = torch.tensor([[1, 1, 1, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(p(x, y).value, dim=(0, 1), mask=mask)
 
@@ -1708,16 +1834,12 @@ def test_Quantifier():
 
     # guarded quantification on a single variable which is also different from the quantified variable
 
-    out = forall(y, p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.)
+    out = forall(y, p(x, y), x, lambda x: torch.sum(x.value, dim=1) > 1.0)
     mask = torch.tensor([[1, 1, 1, 1], [0, 0, 0, 0]]).bool()  # the mask should be this one
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(p(x, y).value, dim=1, mask=mask)
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 1.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        1.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 1.0, toy_out.double())
 
     assert torch.equal(out.value, toy_out.double()), "The output should be the same if everything is correct."
     assert isinstance(out, LTNObject), "The output of a quantification operation is always an LTNObject."
@@ -1760,8 +1882,12 @@ def test_Quantifier():
     # diagonal quantification + guarded quantification
     # condition: consider only when |sum(v1) - sum(v2)| < 0.2
 
-    out = forall(diag(v1, v2), p(v1, v2), [v1, v2], lambda x, y: torch.abs(torch.sum(x.value, dim=1) -
-                                                                           torch.sum(y.value, dim=1)) < 0.2)
+    out = forall(
+        diag(v1, v2),
+        p(v1, v2),
+        [v1, v2],
+        lambda x, y: torch.abs(torch.sum(x.value, dim=1) - torch.sum(y.value, dim=1)) < 0.2,
+    )
     assert v1.free_vars == ["v1"], "The free vars in v1 should be v1."
     assert v2.free_vars == ["v2"], "The free vars in v2 should be v2."
 
@@ -1776,8 +1902,12 @@ def test_Quantifier():
 
     # check the same condition but without diagonal quantification to see changes
 
-    out = forall([v1, v2], p(v1, v2), [v1, v2], lambda x, y: torch.abs(torch.sum(x.value, dim=1) -
-                                                                           torch.sum(y.value, dim=1)) < 2.)
+    out = forall(
+        [v1, v2],
+        p(v1, v2),
+        [v1, v2],
+        lambda x, y: torch.abs(torch.sum(x.value, dim=1) - torch.sum(y.value, dim=1)) < 2.0,
+    )
     proc_objs, _, _ = process_ltn_objects([v1, v2])
     out_p = l(proc_objs[0].value, proc_objs[1].value).view(3, 3)
     mask = torch.tensor([[0, 0, 0], [0, 1, 1], [0, 0, 1]]).bool()  # the mask should be this one
@@ -1801,55 +1931,62 @@ def test_Quantifier():
     y = Variable("y", torch.tensor([[0.2, 0.3, 0.1], [5.4, 7.6, 8.3], [1.6, 4.1, 5.6]]))
     toy_formula = LTNObject(torch.rand((2, 3)), ["x", "y"])
 
-    f, m = Quantifier.compute_mask(copy.deepcopy(toy_formula), cond_vars=[y],
-                                   cond_fn=lambda x: torch.sum(x.value, dim=1) < 5,
-                                   aggregation_vars=[x])
+    f, m = Quantifier.compute_mask(
+        copy.deepcopy(toy_formula), cond_vars=[y], cond_fn=lambda x: torch.sum(x.value, dim=1) < 5, aggregation_vars=[x]
+    )
 
     assert torch.equal(f.value, toy_formula.value.permute(1, 0)), "The formula should be transposed."
     assert toy_formula.free_vars != f.free_vars, "The free vars should be changed in ordering due to transposition."
     assert f.free_vars == ["y", "x"], "The free vars should be transposed."
     assert m.shape() == f.shape(), "Formula and mask should have the same shape."
     assert m.free_vars == ["y", "x"], "The free vars should be the same as the formula."
-    assert torch.equal(m.value, torch.tensor([[True, False, False], [True, False, False]]).permute(1, 0)), "The value " \
-                                                                                                           "should " \
-                                                                                                           "be this one."
+    assert torch.equal(m.value, torch.tensor([[True, False, False], [True, False, False]]).permute(1, 0)), (
+        "The value should be this one."
+    )
 
     # all variables in cond and also aggregated
 
-    f, m = Quantifier.compute_mask(copy.deepcopy(toy_formula), cond_vars=[x, y],
-                                   cond_fn=lambda x, y: torch.sum(x.value, dim=1) < torch.sum(y.value, dim=1),
-                                   aggregation_vars=[x, y])
+    f, m = Quantifier.compute_mask(
+        copy.deepcopy(toy_formula),
+        cond_vars=[x, y],
+        cond_fn=lambda x, y: torch.sum(x.value, dim=1) < torch.sum(y.value, dim=1),
+        aggregation_vars=[x, y],
+    )
 
     assert torch.equal(f.value, toy_formula.value), "The formula should not be transposed."
     assert toy_formula.free_vars == f.free_vars, "The free vars should not be changed in ordering."
     assert f.free_vars == ["x", "y"], "The free vars should not be transposed."
     assert m.shape() == f.shape(), "Formula and mask should have the same shape."
     assert m.free_vars == ["x", "y"], "The free vars should be the same as the formula."
-    assert torch.equal(m.value, torch.tensor([[False, True, True], [False, True, True]])), "The value should " \
-                                                                                            "be this one."
+    assert torch.equal(m.value, torch.tensor([[False, True, True], [False, True, True]])), (
+        "The value should be this one."
+    )
 
     # both aggregated but one in cond - invariant to first case
 
-    f, m = Quantifier.compute_mask(copy.deepcopy(toy_formula), cond_vars=[y],
-                                   cond_fn=lambda x: torch.sum(x.value, dim=1) < 5,
-                                   aggregation_vars=[x, y])
+    f, m = Quantifier.compute_mask(
+        copy.deepcopy(toy_formula),
+        cond_vars=[y],
+        cond_fn=lambda x: torch.sum(x.value, dim=1) < 5,
+        aggregation_vars=[x, y],
+    )
 
     assert torch.equal(f.value, toy_formula.value.permute(1, 0)), "The formula should be transposed."
     assert toy_formula.free_vars != f.free_vars, "The free vars should be changed in ordering due to transposition."
     assert f.free_vars == ["y", "x"], "The free vars should be transposed."
     assert m.shape() == f.shape(), "Formula and mask should have the same shape."
     assert m.free_vars == ["y", "x"], "The free vars should be the same as the formula."
-    assert torch.equal(m.value, torch.tensor([[True, False, False], [True, False, False]]).permute(1, 0)), "The value " \
-                                                                                                           "should " \
-                                                                                                           "be this one."
+    assert torch.equal(m.value, torch.tensor([[True, False, False], [True, False, False]]).permute(1, 0)), (
+        "The value should be this one."
+    )
 
     # only one variable
 
     toy_formula = LTNObject(torch.randn((2,)), ["x"])
 
-    f, m = Quantifier.compute_mask(copy.deepcopy(toy_formula), cond_vars=[x],
-                                   cond_fn=lambda x: torch.sum(x.value, dim=1) < 5,
-                                   aggregation_vars=[x])
+    f, m = Quantifier.compute_mask(
+        copy.deepcopy(toy_formula), cond_vars=[x], cond_fn=lambda x: torch.sum(x.value, dim=1) < 5, aggregation_vars=[x]
+    )
 
     assert torch.equal(f.value, toy_formula.value), "The formula should be untouched."
     assert toy_formula.free_vars == f.free_vars, "The free vars should be the same."
@@ -1885,8 +2022,9 @@ def test_Quantifier():
     p_mean_agg = ltn.fuzzy_ops.AggregPMean()
     assert str(p_mean_agg) == "AggregPMean(p=2, stable=True)", "The __repr__ method should return this exact value"
     p_mean_error_agg = ltn.fuzzy_ops.AggregPMeanError()
-    assert str(p_mean_error_agg) == "AggregPMeanError(p=2, stable=True)", "The __repr__ method should " \
-                                                                          "return this exact value"
+    assert str(p_mean_error_agg) == "AggregPMeanError(p=2, stable=True)", (
+        "The __repr__ method should return this exact value"
+    )
 
     truth_values = torch.rand((3, 5, 6))
     truth_values_2 = torch.tensor([0.3, 0.2, 0.4])
@@ -1896,12 +2034,13 @@ def test_Quantifier():
 
     # test with and without mask
 
-    assert torch.equal(min_agg(truth_values_2, dim=0),
-                       torch.amin(truth_values_2, dim=0)), "Without mask the output should be the same."
+    assert torch.equal(min_agg(truth_values_2, dim=0), torch.amin(truth_values_2, dim=0)), (
+        "Without mask the output should be the same."
+    )
 
-    assert torch.equal(min_agg(truth_values_2, dim=0, mask=m),
-                       torch.amin(torch.where(~m, 1., truth_values_2.double()), dim=0)), "With the mask the " \
-                                                                                         "output should be the same."
+    assert torch.equal(
+        min_agg(truth_values_2, dim=0, mask=m), torch.amin(torch.where(~m, 1.0, truth_values_2.double()), dim=0)
+    ), "With the mask the output should be the same."
 
     # test exceptions of the input
 
@@ -1930,20 +2069,24 @@ def test_Quantifier():
     # check keepdim parameter
 
     out_k_d = min_agg(truth_values, dim=0, keepdim=True)
-    assert torch.equal(out_k_d, torch.amin(truth_values, dim=0, keepdim=True)), "With the keepdim this should " \
-                                                                                "be the behavior."
+    assert torch.equal(out_k_d, torch.amin(truth_values, dim=0, keepdim=True)), (
+        "With the keepdim this should be the behavior."
+    )
 
     # mean
 
     # test with and without mask
 
-    assert torch.equal(mean_agg(truth_values_2, dim=0),
-                       torch.mean(truth_values_2, dim=0)), "Without mask the output should be the same."
+    assert torch.equal(mean_agg(truth_values_2, dim=0), torch.mean(truth_values_2, dim=0)), (
+        "Without mask the output should be the same."
+    )
 
-    assert torch.equal(mean_agg(truth_values_2, dim=0, mask=m),
-                       torch.div(torch.sum(torch.where(~m, torch.zeros_like(truth_values_2),
-                                                       truth_values_2), dim=0),
-                                 torch.sum(m, dim=0))), "With the mask the output should be the same."
+    assert torch.equal(
+        mean_agg(truth_values_2, dim=0, mask=m),
+        torch.div(
+            torch.sum(torch.where(~m, torch.zeros_like(truth_values_2), truth_values_2), dim=0), torch.sum(m, dim=0)
+        ),
+    ), "With the mask the output should be the same."
 
     # test exceptions of the input
 
@@ -1972,22 +2115,32 @@ def test_Quantifier():
     # check keepdim parameter
 
     out_k_d = mean_agg(truth_values, dim=0, keepdim=True)
-    assert torch.equal(out_k_d, torch.mean(truth_values, dim=0, keepdim=True)), "With the keepdim this should " \
-                                                                                "be the behavior."
+    assert torch.equal(out_k_d, torch.mean(truth_values, dim=0, keepdim=True)), (
+        "With the keepdim this should be the behavior."
+    )
 
     # p mean
 
     # test with and without mask
 
-    assert torch.equal(p_mean_agg(truth_values_2, dim=0),
-                       torch.pow(torch.mean(torch.pow(
-                           ltn.fuzzy_ops.pi_0(truth_values_2), 2), dim=0), 1/2)), "Without mask the " \
-                                                                                  "output should be the same."
+    assert torch.equal(
+        p_mean_agg(truth_values_2, dim=0),
+        torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values_2), 2), dim=0), 1 / 2),
+    ), "Without mask the output should be the same."
 
-    assert torch.equal(p_mean_agg(truth_values_2, dim=0, mask=m),
-                       torch.pow(torch.div(torch.sum(torch.where(~m, torch.zeros_like(truth_values_2),
-                                                       torch.pow(ltn.fuzzy_ops.pi_0(truth_values_2), 2)), dim=0),
-                                 torch.sum(m, dim=0)), 1 / 2)), "With the mask the output should be the same."
+    assert torch.equal(
+        p_mean_agg(truth_values_2, dim=0, mask=m),
+        torch.pow(
+            torch.div(
+                torch.sum(
+                    torch.where(~m, torch.zeros_like(truth_values_2), torch.pow(ltn.fuzzy_ops.pi_0(truth_values_2), 2)),
+                    dim=0,
+                ),
+                torch.sum(m, dim=0),
+            ),
+            1 / 2,
+        ),
+    ), "With the mask the output should be the same."
 
     # test exceptions of the input
 
@@ -2006,52 +2159,71 @@ def test_Quantifier():
     out_0_2 = p_mean_agg(truth_values, dim=(0, 2))
     out_1_2 = p_mean_agg(truth_values, dim=(1, 2))
 
-    assert torch.equal(out_0, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=0), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_1, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=1), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_2, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=2), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_0_1, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(0, 1)), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_0_2, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(0, 2)), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_1_2, torch.pow(torch.mean(torch.pow(
-        ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(1, 2)), 1 / 2)), "The mean should implement this behavior."
+    assert torch.equal(out_0, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=0), 1 / 2)), (
+        "The mean should implement this behavior."
+    )
+    assert torch.equal(out_1, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=1), 1 / 2)), (
+        "The mean should implement this behavior."
+    )
+    assert torch.equal(out_2, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=2), 1 / 2)), (
+        "The mean should implement this behavior."
+    )
+    assert torch.equal(
+        out_0_1, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(0, 1)), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_0_2, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(0, 2)), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_1_2, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=(1, 2)), 1 / 2)
+    ), "The mean should implement this behavior."
 
     # check keepdim parameter
 
     out_k_d = p_mean_agg(truth_values, dim=0, keepdim=True)
-    assert torch.equal(out_k_d, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2),
-                                                     dim=0, keepdim=True), 1/2)), "With the keepdim this should " \
-                                                                                "be the behavior."
+    assert torch.equal(
+        out_k_d, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 2), dim=0, keepdim=True), 1 / 2)
+    ), "With the keepdim this should be the behavior."
 
     # different value of p
 
     out_p = p_mean_agg(truth_values, dim=0, p=3)
-    assert torch.equal(out_p, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 3),
-                                                   dim=0), 1 / 3)), "With the keepdim this should " \
-                                                                                    "be the behavior."
+    assert torch.equal(out_p, torch.pow(torch.mean(torch.pow(ltn.fuzzy_ops.pi_0(truth_values), 3), dim=0), 1 / 3)), (
+        "With the keepdim this should be the behavior."
+    )
 
     # not stable
 
     out_p = p_mean_agg(truth_values, dim=0, stable=False)
-    assert torch.equal(out_p, torch.pow(torch.mean(torch.pow(truth_values, 2), dim=0), 1/2)), "With the keepdim this " \
-                                                                                              "should be the behavior."
+    assert torch.equal(out_p, torch.pow(torch.mean(torch.pow(truth_values, 2), dim=0), 1 / 2)), (
+        "With the keepdim this should be the behavior."
+    )
 
     # p mean error
 
     # test with and without mask
 
-    assert torch.equal(p_mean_error_agg(truth_values_2, dim=0),
-                       1 - torch.pow(torch.mean(torch.pow(
-                           1 - ltn.fuzzy_ops.pi_1(truth_values_2), 2), dim=0), 1/2)), "Without mask the " \
-                                                                                      "output should be the same."
+    assert torch.equal(
+        p_mean_error_agg(truth_values_2, dim=0),
+        1 - torch.pow(torch.mean(torch.pow(1 - ltn.fuzzy_ops.pi_1(truth_values_2), 2), dim=0), 1 / 2),
+    ), "Without mask the output should be the same."
 
-    assert torch.equal(p_mean_error_agg(truth_values_2, dim=0, mask=m),
-                       1 - torch.pow(torch.div(torch.sum(torch.where(~m, torch.zeros_like(truth_values_2),
-                                                         torch.pow(1 - ltn.fuzzy_ops.pi_1(truth_values_2), 2)), dim=0),
-                                     torch.sum(m, dim=0)), 1 / 2)), "With the mask the output should be the same."
+    assert torch.equal(
+        p_mean_error_agg(truth_values_2, dim=0, mask=m),
+        1
+        - torch.pow(
+            torch.div(
+                torch.sum(
+                    torch.where(
+                        ~m, torch.zeros_like(truth_values_2), torch.pow(1 - ltn.fuzzy_ops.pi_1(truth_values_2), 2)
+                    ),
+                    dim=0,
+                ),
+                torch.sum(m, dim=0),
+            ),
+            1 / 2,
+        ),
+    ), "With the mask the output should be the same."
 
     # test exceptions of the input
 
@@ -2070,38 +2242,46 @@ def test_Quantifier():
     out_0_2 = p_mean_error_agg(truth_values, dim=(0, 2))
     out_1_2 = p_mean_error_agg(truth_values, dim=(1, 2))
 
-    assert torch.equal(out_0, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=0), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_1, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=1), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_2, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=2), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_0_1, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(0, 1)), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_0_2, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(0, 2)), 1 / 2)), "The mean should implement this behavior."
-    assert torch.equal(out_1_2, 1. - torch.pow(torch.mean(torch.pow(
-        1. - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(1, 2)), 1 / 2)), "The mean should implement this behavior."
+    assert torch.equal(
+        out_0, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=0), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_1, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=1), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_2, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=2), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_0_1, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(0, 1)), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_0_2, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(0, 2)), 1 / 2)
+    ), "The mean should implement this behavior."
+    assert torch.equal(
+        out_1_2, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=(1, 2)), 1 / 2)
+    ), "The mean should implement this behavior."
 
     # check keepdim parameter
 
     out_k_d = p_mean_error_agg(truth_values, dim=0, keepdim=True)
-    assert torch.equal(out_k_d, 1. - torch.pow(torch.mean(torch.pow(1. - ltn.fuzzy_ops.pi_1(truth_values), 2),
-                                                          dim=0, keepdim=True), 1 / 2)), "With the keepdim this should " \
-                                                                                    "be the behavior."
+    assert torch.equal(
+        out_k_d,
+        1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 2), dim=0, keepdim=True), 1 / 2),
+    ), "With the keepdim this should be the behavior."
 
     # different value of p
 
     out_p = p_mean_error_agg(truth_values, dim=0, p=3)
-    assert torch.equal(out_p, 1. - torch.pow(torch.mean(torch.pow(1. - ltn.fuzzy_ops.pi_1(truth_values), 3),
-                                                        dim=0), 1 / 3)), "With the keepdim this should " \
-                                                                    "be the behavior."
+    assert torch.equal(
+        out_p, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - ltn.fuzzy_ops.pi_1(truth_values), 3), dim=0), 1 / 3)
+    ), "With the keepdim this should be the behavior."
 
     # not stable
 
     out_p = p_mean_error_agg(truth_values, dim=0, stable=False)
-    assert torch.equal(out_p, 1. - torch.pow(torch.mean(torch.pow(1. - truth_values, 2),
-                                                        dim=0), 1 / 2)), "With the keepdim this should be the behavior."
+    assert torch.equal(out_p, 1.0 - torch.pow(torch.mean(torch.pow(1.0 - truth_values, 2), dim=0), 1 / 2)), (
+        "With the keepdim this should be the behavior."
+    )
 
     # guarded quantification with variables which are not in the formula
 
@@ -2111,17 +2291,12 @@ def test_Quantifier():
     points = torch.rand((50, 2))  # 3 values in [0,1]^2
     x_ = ltn.Variable("x", points)
     y_ = ltn.Variable("y", points)
-    d = ltn.Variable("d", torch.tensor([.1, .2, .3, .4, .5, .6, .7, .8, .9]))
+    d = ltn.Variable("d", torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]))
 
     # function measuring euclidean distance
     dist = lambda x, y: torch.unsqueeze(torch.norm(x.value - y.value, dim=1), 1)
 
-    out = exists(d,
-                 forall([x_, y_],
-                        Eq(x_, y_),
-                        cond_vars=[x_, y_, d],
-                        cond_fn=lambda x, y, d: dist(x, y) < d.value
-                        ))
+    out = exists(d, forall([x_, y_], Eq(x_, y_), cond_vars=[x_, y_, d], cond_fn=lambda x, y, d: dist(x, y) < d.value))
 
     # compute mask
     proc_objs, _, _ = process_ltn_objects([x_, y_, d])
@@ -2130,15 +2305,12 @@ def test_Quantifier():
     toy_out = Eq(x_, y_)
     toy_out.value = toy_out.value.view(50, 50, 1)
     toy_out.value = toy_out.value.expand(50, 50, 9)
-    toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(toy_out.value.permute((2, 0, 1)),
-                                                  dim=(1, 2), mask=mask.permute((2, 0, 1)))
+    toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(
+        toy_out.value.permute((2, 0, 1)), dim=(1, 2), mask=mask.permute((2, 0, 1))
+    )
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 1.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        1.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 1.0, toy_out.double())
     toy_out = ltn.fuzzy_ops.AggregPMean(p=2)(toy_out, dim=0)
 
     assert torch.equal(out.value, toy_out), "The output should be the same if everything is correct."
@@ -2170,17 +2342,14 @@ def test_Quantifier():
     points2 = torch.rand((20, 2))
     x_ = ltn.Variable("x", points1)
     y_ = ltn.Variable("y", points2)
-    d = ltn.Variable("d", torch.tensor([.1, .2, .3, .4, .5, .6, .7, .8, .9]))
+    d = ltn.Variable("d", torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]))
 
     # function measuring euclidean distance
     dist = lambda x, y: torch.unsqueeze(torch.norm(x.value - y.value, dim=1), 1)
 
-    out = exists(d,
-                 forall(ltn.diag(x_, y_),
-                        Eq(x_, y_),
-                        cond_vars=[x_, y_, d],
-                        cond_fn=lambda x, y, d: dist(x, y) < d.value
-                        ))
+    out = exists(
+        d, forall(ltn.diag(x_, y_), Eq(x_, y_), cond_vars=[x_, y_, d], cond_fn=lambda x, y, d: dist(x, y) < d.value)
+    )
 
     # compute mask
     x_, y_ = ltn.diag(x_, y_)
@@ -2193,11 +2362,7 @@ def test_Quantifier():
     toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(toy_out.value, dim=0, mask=mask)
     # replace of remaining Nan values after the aggregation
     # since quantifier is forall, we replace with 1.
-    toy_out = torch.where(
-        torch.isnan(toy_out),
-        1.,
-        toy_out.double()
-    )
+    toy_out = torch.where(torch.isnan(toy_out), 1.0, toy_out.double())
     toy_out = ltn.fuzzy_ops.AggregPMean(p=2)(toy_out, dim=0)
 
     assert torch.abs(out.value - toy_out) < 1e-8, "The output should be the same if everything is correct."
@@ -2208,8 +2373,9 @@ def test_Quantifier():
     # test SatAgg
 
     SatAgg = ltn.fuzzy_ops.SatAgg()
-    assert str(SatAgg) == "SatAgg(agg_op=AggregPMeanError(p=2, stable=True))", "The __repr__ method hould return " \
-                                                                               "this exact value"
+    assert str(SatAgg) == "SatAgg(agg_op=AggregPMeanError(p=2, stable=True))", (
+        "The __repr__ method hould return this exact value"
+    )
 
     # test exception in construction
 
@@ -2266,7 +2432,8 @@ def test_Quantifier():
 
     out = SatAgg(*l)
 
-    toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(torch.stack([o.value if isinstance(o, LTNObject) else o for o in l],
-                                                              dim=0), dim=0)
+    toy_out = ltn.fuzzy_ops.AggregPMeanError(p=2)(
+        torch.stack([o.value if isinstance(o, LTNObject) else o for o in l], dim=0), dim=0
+    )
 
     assert torch.equal(out, toy_out), "The output should be the same."
